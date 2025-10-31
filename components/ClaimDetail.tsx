@@ -470,7 +470,7 @@ export const ClaimDetail: React.FC<{
                                                     <span>{isUploadingFiles ? 'Đang upload...' : 'Thêm tệp'}</span>
                                                 </div>
                                             </label>
-                                            <input id="file-upload-detail" type="file" className="sr-only" multiple onChange={handleFileAdd} disabled={isUploadingFiles} />
+                                            <input key={editableClaim.attachments.length} id="file-upload-detail" type="file" className="sr-only" multiple onChange={handleFileAdd} disabled={isUploadingFiles} />
                                         </div>
                                     )}
                                 </div>
@@ -545,7 +545,7 @@ export const ClaimDetail: React.FC<{
                                                     <span>{isUploadingRcaFiles ? 'Đang upload...' : 'Thêm tệp'}</span>
                                                 </div>
                                             </label>
-                                            <input id="rca-file-upload" type="file" className="sr-only" multiple onChange={handleRcaFileAdd} disabled={isUploadingRcaFiles} />
+                                            <input key={editableClaim.rootCauseAnalysis.attachments.length} id="rca-file-upload" type="file" className="sr-only" multiple onChange={handleRcaFileAdd} disabled={isUploadingRcaFiles} />
                                         </div>
                                     )}
                                 </div>
