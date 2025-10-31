@@ -374,30 +374,32 @@ export const ClaimDetail: React.FC<{
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <button onClick={onBack} className="text-ykk-blue hover:underline mb-2">&larr; Quay lại danh sách</button>
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Chi tiết Claim: {claim.id}</h2>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <button onClick={handleGenerateReport} disabled={isGeneratingReport} className="flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-600 border border-transparent rounded-md shadow-sm hover:from-purple-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {isGeneratingReport ? (
-                            <RefreshCwIcon className="w-5 h-5 mr-2 animate-spin" />
-                        ) : (
-                            <SparklesIcon className="w-5 h-5 mr-2" />
-                        )}
-                        AI Tạo Báo cáo 8D
-                    </button>
-                    {canEditAnything && (
-                        <>
-                            <button onClick={() => setEditableClaim(claim)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500">
-                                Hủy
+            <div className="sticky top-0 z-10 bg-ykk-background dark:bg-gray-900 py-3 -mt-6 -mx-6 px-4 md:px-6 shadow-sm">
+                <div className="flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                        <button onClick={onBack} className="text-ykk-blue hover:underline text-sm">&larr; Quay lại</button>
+                        <div className="flex items-center gap-1.5">
+                            <button onClick={handleGenerateReport} disabled={isGeneratingReport} className="flex items-center px-2 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-600 border border-transparent rounded-md shadow-sm hover:from-purple-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed md:px-4 md:py-2 md:text-sm" title="AI Tạo Báo cáo 8D">
+                                {isGeneratingReport ? (
+                                    <RefreshCwIcon className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <SparklesIcon className="w-4 h-4" />
+                                )}
+                                <span className="hidden md:inline ml-2">AI Tạo Báo cáo 8D</span>
                             </button>
-                            <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-ykk-blue border border-transparent rounded-md shadow-sm hover:bg-ykk-blue/90">
-                                Lưu thay đổi
-                            </button>
-                        </>
-                    )}
+                            {canEditAnything && (
+                                <>
+                                    <button onClick={() => setEditableClaim(claim)} className="px-2 py-1.5 text-xs font-medium text-gray-700 bg-white dark:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 md:px-4 md:py-2 md:text-sm">
+                                        Hủy
+                                    </button>
+                                    <button onClick={handleSave} className="px-2 py-1.5 text-xs font-medium text-white bg-ykk-blue border border-transparent rounded-md shadow-sm hover:bg-ykk-blue/90 md:px-4 md:py-2 md:text-sm">
+                                        Lưu
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 md:text-2xl">Chi tiết Claim: {claim.id}</h2>
                 </div>
             </div>
 
