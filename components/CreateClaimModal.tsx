@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Claim, ClaimSeverity, User, TraceabilityAnalysis, RootCauseAnalysis, FishboneAnalysisData, Attachment, FilterStatus } from '../types';
 import { users, createDefaultFishboneData } from '../data/mockData';
-import { XCircleIcon, PaperclipIcon } from './Icons';
+import { XCircleIcon, PaperclipIcon, RefreshCwIcon } from './Icons';
 import { DEPARTMENTS } from '../constants';
+import { storageService } from '../services/storageService';
+import { notificationService } from '../services/notificationService';
 
 interface CreateClaimModalProps {
     onClose: () => void;
@@ -54,10 +56,22 @@ export const CreateClaimModal: React.FC<CreateClaimModalProps> = ({ onClose, onC
     });
 
     const [attachments, setAttachments] = useState<File[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            setAttachments(prev => [...prev, ...Array.from(e.target.files)]);
+            const newFiles = Array.from(e.target.files);
+            const maxSize = 2 * 1024 * 1024;
+            const oversizedFiles = newFiles.filter(f => f.size > maxSize);
+            
+            if (oversizedFiles.length > 0) {
+                notificationService.notify(`File quá lớn: ${oversizedFiles.map(f => f.name).join(', ')}. Giới hạn 2MB/file`, { type: 'error', duration: 4000 });
+                e.target.value = '';
+                return;
+            }
+            
+            setAttachments(prev => [...prev, ...newFiles]);
+            e.target.value = '';
         }
     };
 
@@ -70,7 +84,7 @@ export const CreateClaimModal: React.FC<CreateClaimModalProps> = ({ onClose, onC
         setFormData(prev => ({...prev, [name]: (name === 'quantity' || name === 'totalQuantity') ? parseInt(value) || 0 : value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const assignee = users.find(u => u.id === formData.assigneeId);
         if (!assignee) {
@@ -78,28 +92,42 @@ export const CreateClaimModal: React.FC<CreateClaimModalProps> = ({ onClose, onC
             return;
         }
         
-        const { assigneeId, ...rest } = formData;
+        setIsUploading(true);
         
-        const attachmentData: Attachment[] = attachments.map(file => ({
-            name: file.name,
-            url: '#', // Placeholder URL for mock data
-            type: file.type.startsWith('image/') ? 'image' : 'document'
-        }));
+        try {
+            const { assigneeId, ...rest } = formData;
+            
+            // Upload files to Supabase
+            const uploadPromises = attachments.map(async (file) => {
+                const url = await storageService.uploadFile(file, 'attachments');
+                return {
+                    name: file.name,
+                    url,
+                    type: file.type.startsWith('image/') ? 'image' as const : 'document' as const
+                };
+            });
+            
+            const attachmentData = await Promise.all(uploadPromises);
 
-        onCreateClaim({
-            ...rest,
-            assignee,
-            attachments: attachmentData,
-            // Initialize 8D fields
-            containmentActions: '',
-            rootCauseAnalysis: defaultRootCauseAnalysis,
-            correctiveActions: '',
-            preventiveActions: '',
-            effectivenessValidation: '',
-            closureSummary: '',
-            customerConfirmation: false,
-            traceabilityAnalysis: defaultTraceability,
-        });
+            onCreateClaim({
+                ...rest,
+                assignee,
+                attachments: attachmentData,
+                containmentActions: '',
+                rootCauseAnalysis: defaultRootCauseAnalysis,
+                correctiveActions: '',
+                preventiveActions: '',
+                effectivenessValidation: '',
+                closureSummary: '',
+                customerConfirmation: false,
+                traceabilityAnalysis: defaultTraceability,
+            });
+        } catch (error) {
+            console.error('Error uploading files:', error);
+            notificationService.notify('Lỗi khi upload file', { type: 'error', duration: 3000 });
+        } finally {
+            setIsUploading(false);
+        }
     };
     
     const productionDepartments = DEPARTMENTS.filter(d => !['Admin', 'QC', 'N/A'].includes(d));
@@ -171,11 +199,11 @@ export const CreateClaimModal: React.FC<CreateClaimModalProps> = ({ onClose, onC
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">File đính kèm</label>
                                 <div className="flex items-center">
-                                    <label htmlFor="file-upload" className="cursor-pointer flex items-center px-4 py-2 bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500">
+                                    <label htmlFor="file-upload" className={`cursor-pointer flex items-center px-4 py-2 bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
                                         <PaperclipIcon className="w-4 h-4 mr-2" />
                                         <span>Chọn tệp</span>
                                     </label>
-                                    <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} />
+                                    <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
                                 </div>
                                 {attachments.length > 0 && (
                                     <div className="mt-3 space-y-2">
@@ -193,8 +221,11 @@ export const CreateClaimModal: React.FC<CreateClaimModalProps> = ({ onClose, onC
                         </div>
                     </div>
                      <div className="flex justify-end items-center p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-xl flex-shrink-0">
-                        <button onClick={onClose} type="button" className="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none">Hủy</button>
-                        <button type="submit" className="ml-3 px-4 py-2 text-sm font-medium text-white bg-ykk-blue border border-transparent rounded-md shadow-sm hover:bg-ykk-blue/90 focus:outline-none">Tạo Claim</button>
+                        <button onClick={onClose} type="button" disabled={isUploading} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none disabled:opacity-50">Hủy</button>
+                        <button type="submit" disabled={isUploading} className="ml-3 px-4 py-2 text-sm font-medium text-white bg-ykk-blue border border-transparent rounded-md shadow-sm hover:bg-ykk-blue/90 focus:outline-none disabled:opacity-50 flex items-center">
+                            {isUploading && <RefreshCwIcon className="w-4 h-4 mr-2 animate-spin" />}
+                            {isUploading ? 'Đang upload...' : 'Tạo Claim'}
+                        </button>
                     </div>
                 </form>
             </div>

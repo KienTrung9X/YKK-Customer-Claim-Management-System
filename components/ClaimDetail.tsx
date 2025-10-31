@@ -4,7 +4,7 @@ import { Claim, ClaimStatus, ClaimSeverity, User, FishboneAnalysisData, Traceabi
 import { IshikawaDiagram } from './IshikawaDiagram';
 import { CommentSection } from './CommentSection';
 import { permissionService } from '../services/permissionService';
-import { PaperclipIcon, XCircleIcon, FileIcon, FileTextIcon, ZoomInIcon, SparklesIcon, RefreshCwIcon, ChevronDownIcon } from './Icons';
+import { PaperclipIcon, XCircleIcon, FileIcon, FileTextIcon, ZoomInIcon, SparklesIcon, RefreshCwIcon, ChevronDownIcon, CheckCircleIcon } from './Icons';
 import { getTimeLeft } from '../utils/time';
 import { TraceabilitySection } from './TraceabilitySection';
 import { aiService } from '../services/aiService';
@@ -49,6 +49,43 @@ const InfoItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, 
         <p className="text-base text-gray-800 dark:text-gray-100 mt-1">{value}</p>
     </div>
 );
+
+const CopyButton: React.FC<{ text: string }> = ({ text }) => {
+    const [copied, setCopied] = useState(false);
+    
+    const handleCopy = () => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    
+    return (
+        <button
+            onClick={handleCopy}
+            className="ml-2 p-1 text-xs text-ykk-blue hover:bg-ykk-blue/10 rounded transition-colors"
+            title="Copy"
+        >
+            {copied ? <CheckCircleIcon className="w-4 h-4 text-green-500" /> : <span>📋</span>}
+        </button>
+    );
+};
+
+const PRList: React.FC<{ prs: string }> = ({ prs }) => {
+    if (!prs || prs.trim() === '') return <span className="text-gray-400 italic">N/A</span>;
+    
+    const prArray = prs.split(',').map(pr => pr.trim()).filter(pr => pr);
+    
+    return (
+        <div className="flex flex-wrap gap-2">
+            {prArray.map((pr, index) => (
+                <div key={index} className="flex items-center bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-md border border-blue-200 dark:border-blue-700">
+                    <span className="text-sm font-mono text-blue-700 dark:text-blue-300">{pr}</span>
+                    <CopyButton text={pr} />
+                </div>
+            ))}
+        </div>
+    );
+};
 
 const getSeverityStyles = (severity: ClaimSeverity) => {
     switch (severity) {
@@ -394,6 +431,12 @@ export const ClaimDetail: React.FC<{
                      {/* D1 & D2 in one card for brevity */}
                      <ReportSection title="Xác định & Mô tả vấn đề" dNumber="D1/D2">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <InfoItem label="Mã đơn hàng" value={
+                                <div className="flex items-center">
+                                    <span className="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{claim.orderId}</span>
+                                    <CopyButton text={claim.orderId} />
+                                </div>
+                             } />
                              <InfoItem label="Loại lỗi" value={claim.defectType} />
                              <InfoItem label="Mức độ" value={<span className={`px-2 py-1 rounded-full text-xs font-semibold ${getSeverityStyles(claim.severity)}`}>{claim.severity}</span>} />
                              <InfoItem 
@@ -406,7 +449,9 @@ export const ClaimDetail: React.FC<{
                             />
                              <InfoItem label="Số lượng lỗi" value={`${claim.quantity} / ${claim.totalQuantity} (${claim.totalQuantity > 0 ? ((claim.quantity/claim.totalQuantity)*100).toFixed(2) : 0}%)`} />
                              <InfoItem label="Nơi phát hiện" value={claim.discoveryLocation} />
-                             <InfoItem label="PR hoàn thành" value={claim.completedPrs || 'N/A'} />
+                             <div className="md:col-span-3">
+                                <InfoItem label="PR hoàn thành" value={<PRList prs={claim.completedPrs} />} />
+                             </div>
                              <div className="md:col-span-3">
                                 <InfoItem label="Mô tả chi tiết" value={<p className="whitespace-pre-wrap">{claim.description}</p>} />
                              </div>
