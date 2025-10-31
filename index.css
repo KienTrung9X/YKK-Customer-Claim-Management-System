@@ -1,3 +1,12 @@
+/* Hide Vercel Toolbar */
+#__next-build-watcher,
+iframe[src*="vercel"],
+iframe[title*="Vercel"],
+[data-vercel-toolbar],
+.__vercel_toolbar {
+  display: none !important;
+}
+
 /* Global styles for responsive design */
 * {
   box-sizing: border-box;
