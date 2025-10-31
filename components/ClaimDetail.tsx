@@ -137,6 +137,17 @@ export const ClaimDetail: React.FC<{
     const handleFileAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles = Array.from(e.target.files);
+            
+            // Kiểm tra kích thước file (2MB = 2 * 1024 * 1024 bytes)
+            const maxSize = 2 * 1024 * 1024;
+            const oversizedFiles = newFiles.filter(f => f.size > maxSize);
+            
+            if (oversizedFiles.length > 0) {
+                notificationService.notify(`File quá lớn: ${oversizedFiles.map(f => f.name).join(', ')}. Giới hạn 2MB/file`, { type: 'error', duration: 4000 });
+                e.target.value = '';
+                return;
+            }
+            
             setIsUploadingFiles(true);
             
             try {
@@ -177,6 +188,17 @@ export const ClaimDetail: React.FC<{
     const handleRcaFileAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles = Array.from(e.target.files);
+            
+            // Kiểm tra kích thước file (2MB)
+            const maxSize = 2 * 1024 * 1024;
+            const oversizedFiles = newFiles.filter(f => f.size > maxSize);
+            
+            if (oversizedFiles.length > 0) {
+                notificationService.notify(`File quá lớn: ${oversizedFiles.map(f => f.name).join(', ')}. Giới hạn 2MB/file`, { type: 'error', duration: 4000 });
+                e.target.value = '';
+                return;
+            }
+            
             setIsUploadingRcaFiles(true);
             
             try {

@@ -6,7 +6,10 @@ export const databaseService = {
   async getUsers() {
     const { data, error } = await supabase.from('users').select('*');
     if (error) throw error;
-    return data as User[];
+    return (data || []).map(user => ({
+      ...user,
+      avatarUrl: user.avatar_url
+    })) as User[];
   },
 
   async createUser(user: User) {
