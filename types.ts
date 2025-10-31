@@ -49,26 +49,26 @@ export interface RootCauseAnalysis {
   rootCause: string;
   escapePoint: string;
   confirmationEvidence: string;
+  attachments: Attachment[];
 }
 
-export interface TraceabilityRow {
-  id: string;
-  lot: string;
-  date: string;
-  machine: string;
-  quantity: string;
-  notes: string;
+export enum FilterStatus {
+    NotFiltered = 'Chưa lọc',
+    GettingItems = 'Đang lấy hàng lọc',
+    Filtering = 'Đang lọc',
+    Filtered = 'Đã lọc',
 }
 
 export interface TraceabilityAnalysisItem {
-  data: TraceabilityRow[];
-  departments: {
-    shipping: boolean;
-    finishing: boolean;
-    warehouse: boolean;
-    planning: boolean;
-    qc: boolean;
-  };
+  tableData: string[][]; // First row is header, subsequent rows are data
+  filteredDefectCount: number;
+  filterStatus: FilterStatus;
+  involvedDepartments: string[];
+  personInChargeName: string;
+  dataRetrievalDate: string | null;
+  filteringDate: string | null;
+  returnDate: string | null;
+  notes: string;
 }
 
 export interface TraceabilityAnalysis {
@@ -91,6 +91,15 @@ export interface Comment {
     text: string;
 }
 
+export interface AppNotification {
+  id: string;
+  message: string; // Can contain safe HTML (e.g., <strong>)
+  timestamp: string;
+  isRead: boolean;
+  claimId: string;
+  userId: string; // ID of the user who performed the action
+}
+
 export interface Claim {
   id: string;
   customerName: string;
@@ -110,6 +119,7 @@ export interface Claim {
   deadline: string;
   attachments: Attachment[];
   comments: Comment[];
+  completedPrs: string;
   // 8D Report fields
   containmentActions: string;
   rootCauseAnalysis: RootCauseAnalysis;

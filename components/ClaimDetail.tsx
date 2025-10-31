@@ -4,7 +4,7 @@ import { Claim, ClaimStatus, ClaimSeverity, User, FishboneAnalysisData, Traceabi
 import { IshikawaDiagram } from './IshikawaDiagram';
 import { CommentSection } from './CommentSection';
 import { permissionService } from '../services/permissionService';
-import { PaperclipIcon, XCircleIcon, FileIcon, FileTextIcon, ZoomInIcon, SparklesIcon, RefreshCwIcon } from './Icons';
+import { PaperclipIcon, XCircleIcon, FileIcon, FileTextIcon, ZoomInIcon, SparklesIcon, RefreshCwIcon, ChevronDownIcon } from './Icons';
 import { getTimeLeft } from '../utils/time';
 import { TraceabilitySection } from './TraceabilitySection';
 import { aiService } from '../services/aiService';
@@ -13,14 +13,32 @@ import { ReportModal } from './ReportModal';
 
 
 // A generic section component for the 8D report
-const ReportSection: React.FC<{ title: string; dNumber?: string; children: React.ReactNode }> = ({ title, dNumber, children }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-        <div className="p-4 border-b dark:border-gray-700">
+const ReportSection: React.FC<{ 
+    title: string; 
+    dNumber?: string; 
+    children: React.ReactNode;
+    isCollapsible?: boolean;
+    isExpanded?: boolean;
+    onToggle?: () => void;
+}> = ({ title, dNumber, children, isCollapsible, isExpanded, onToggle }) => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+        <button 
+            type="button"
+            className={`w-full text-left p-4 flex justify-between items-center ${isExpanded ? 'border-b dark:border-gray-700' : ''} ${isCollapsible ? 'hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}`}
+            onClick={isCollapsible ? onToggle : undefined}
+            disabled={!isCollapsible}
+            aria-expanded={isCollapsible ? isExpanded : undefined}
+        >
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 {dNumber && <span className="text-ykk-blue font-bold">{dNumber}:</span>} {title}
             </h3>
+            {isCollapsible && <ChevronDownIcon className={`w-5 h-5 text-gray-500 dark:text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />}
+        </button>
+        <div className={`grid transition-all duration-300 ease-in-out ${isExpanded || !isCollapsible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+            <div className="overflow-hidden">
+                <div className="p-4">{children}</div>
+            </div>
         </div>
-        <div className="p-4">{children}</div>
     </div>
 );
 
@@ -62,6 +80,22 @@ export const ClaimDetail: React.FC<{
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
+    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+        'D3': false,
+        'traceability': false,
+        'D4': false,
+        'D5': false,
+        'D6': false,
+        'D7': false,
+        'D8': false,
+    });
+
+    const toggleSection = (sectionId: string) => {
+        setExpandedSections(prev => ({
+            ...prev,
+            [sectionId]: !prev[sectionId]
+        }));
+    };
 
     const canEditAnything = permissionService.canEditAnythingOnClaim(currentUser, claim);
     const canEditHeader = permissionService.canEditClaimHeader(currentUser);
@@ -120,6 +154,36 @@ export const ClaimDetail: React.FC<{
             attachments: prev.attachments.filter((_, index) => index !== indexToRemove)
         }));
     };
+    
+    const handleRcaFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const newFiles = Array.from(e.target.files);
+            const newAttachments: Attachment[] = newFiles.map((file: File) => ({
+                name: file.name,
+                url: URL.createObjectURL(file),
+                type: file.type.startsWith('image/') ? 'image' : 'document',
+            }));
+
+            setEditableClaim(prev => ({
+                ...prev,
+                rootCauseAnalysis: {
+                    ...prev.rootCauseAnalysis,
+                    attachments: [...prev.rootCauseAnalysis.attachments, ...newAttachments]
+                }
+            }));
+        }
+    };
+
+    const handleRcaFileRemove = (indexToRemove: number) => {
+        setEditableClaim(prev => ({
+            ...prev,
+            rootCauseAnalysis: {
+                ...prev.rootCauseAnalysis,
+                attachments: prev.rootCauseAnalysis.attachments.filter((_, index) => index !== indexToRemove)
+            }
+        }));
+    };
+
 
     const handleSave = () => {
         onUpdateClaim(editableClaim);
@@ -148,6 +212,8 @@ export const ClaimDetail: React.FC<{
                 return <FileTextIcon className="w-8 h-8 text-blue-500 dark:text-blue-400" />;
             case 'xls':
             case 'xlsx':
+            case 'ppt':
+            case 'pptx':
                 return <FileTextIcon className="w-8 h-8 text-green-500 dark:text-green-400" />;
             default:
                 return <FileIcon className="w-8 h-8 text-gray-500 dark:text-gray-400" />;
@@ -155,6 +221,61 @@ export const ClaimDetail: React.FC<{
     };
 
     const { timeLeft, isOverdue } = getTimeLeft(claim.deadline);
+
+    const AttachmentList: React.FC<{
+        attachments: Attachment[];
+        onRemove: (index: number) => void;
+        isEditable: boolean;
+    }> = ({ attachments, onRemove, isEditable }) => (
+        <div className="mt-2">
+            {attachments.length > 0 ? (
+                <div className="flex flex-wrap gap-4">
+                    {attachments.map((att, index) => (
+                        <div key={`${att.name}-${index}`} className="relative group w-24 h-24">
+                            {att.type === 'image' ? (
+                                <button onClick={() => setViewingImage(att.url)} className="block w-full h-full relative group">
+                                    <img src={att.url} alt={att.name} className="w-full h-full object-cover rounded-lg border dark:border-gray-600" />
+                                    <div className="absolute inset-0 bg-black/60 flex items-end p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <p className="text-white text-xs leading-tight line-clamp-2">{att.name}</p>
+                                    </div>
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg">
+                                        <ZoomInIcon className="w-8 h-8" />
+                                    </div>
+                                </button>
+                            ) : (
+                                <a 
+                                    href={att.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    title={att.name}
+                                    className="block w-full h-full p-2 rounded-lg border dark:border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700/50 hover:border-ykk-blue dark:hover:border-ykk-blue hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <div className="w-full h-full flex flex-col items-center justify-center">
+                                        {getDocumentIcon(att.name)}
+                                        <p className="text-xs text-center mt-2 text-ykk-blue line-clamp-2 w-full">
+                                            {att.name}
+                                        </p>
+                                    </div>
+                                </a>
+                            )}
+                            {isEditable && (
+                                <button 
+                                    type="button" 
+                                    onClick={() => onRemove(index)} 
+                                    className="absolute -top-1.5 -right-1.5 bg-white dark:bg-gray-700 text-red-500 rounded-full p-0 leading-none shadow-md opacity-0 group-hover:opacity-100 transition-all hover:scale-110 focus:outline-none"
+                                    title="Xóa tệp"
+                                >
+                                    <XCircleIcon className="w-5 h-5" />
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-sm text-gray-400 italic">Không có file đính kèm.</p>
+            )}
+        </div>
+    );
 
     return (
         <div className="space-y-6">
@@ -227,12 +348,13 @@ export const ClaimDetail: React.FC<{
                             />
                              <InfoItem label="Số lượng lỗi" value={`${claim.quantity} / ${claim.totalQuantity} (${claim.totalQuantity > 0 ? ((claim.quantity/claim.totalQuantity)*100).toFixed(2) : 0}%)`} />
                              <InfoItem label="Nơi phát hiện" value={claim.discoveryLocation} />
+                             <InfoItem label="PR hoàn thành" value={claim.completedPrs || 'N/A'} />
                              <div className="md:col-span-3">
                                 <InfoItem label="Mô tả chi tiết" value={<p className="whitespace-pre-wrap">{claim.description}</p>} />
                              </div>
                              <div className="md:col-span-3">
                                 <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tài liệu đính kèm</p>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tài liệu đính kèm chung</p>
                                     {canEditAnything && (
                                         <div>
                                             <label htmlFor="file-upload-detail" className="cursor-pointer text-sm font-medium text-ykk-blue hover:underline">
@@ -245,55 +367,27 @@ export const ClaimDetail: React.FC<{
                                         </div>
                                     )}
                                 </div>
-                                 <div className="mt-2">
-                                    {editableClaim.attachments.length > 0 ? (
-                                        <div className="flex flex-wrap gap-4">
-                                            {editableClaim.attachments.map((att, index) => (
-                                                <div key={`${att.name}-${index}`} className="relative group w-24 h-24">
-                                                    {att.type === 'image' ? (
-                                                        <button onClick={() => setViewingImage(att.url)} className="block w-full h-full relative group">
-                                                            <img src={att.url} alt={att.name} className="w-full h-full object-cover rounded-lg border dark:border-gray-600" />
-                                                            <div className="absolute inset-0 bg-black/60 flex items-end p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                                <p className="text-white text-xs leading-tight line-clamp-2">{att.name}</p>
-                                                            </div>
-                                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg">
-                                                                <ZoomInIcon className="w-8 h-8" />
-                                                            </div>
-                                                        </button>
-                                                    ) : (
-                                                        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-700/50 rounded-lg border dark:border-gray-300 dark:border-gray-600 p-2">
-                                                            {getDocumentIcon(att.name)}
-                                                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-xs text-center mt-2 text-ykk-blue hover:underline line-clamp-2 w-full" title={att.name}>
-                                                                {att.name}
-                                                            </a>
-                                                        </div>
-                                                    )}
-                                                    {canEditAnything && (
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => handleFileRemove(index)} 
-                                                            className="absolute -top-1.5 -right-1.5 bg-white dark:bg-gray-700 text-red-500 rounded-full p-0 leading-none shadow-md opacity-0 group-hover:opacity-100 transition-all hover:scale-110 focus:outline-none"
-                                                            title="Xóa tệp"
-                                                        >
-                                                            <XCircleIcon className="w-5 h-5" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-gray-400 italic">Không có file đính kèm.</p>
-                                    )}
-                                </div>
+                                <AttachmentList attachments={editableClaim.attachments} onRemove={handleFileRemove} isEditable={canEditAnything} />
                              </div>
                         </div>
                     </ReportSection>
 
-                    <ReportSection title="Hành động ngăn chặn tạm thời" dNumber="D3">
+                    <ReportSection 
+                        title="Hành động ngăn chặn tạm thời" 
+                        dNumber="D3"
+                        isCollapsible={true}
+                        isExpanded={!!expandedSections['D3']}
+                        onToggle={() => toggleSection('D3')}
+                    >
                          <textarea name="containmentActions" value={editableClaim.containmentActions} onChange={handleChange} readOnly={!canEditContainment} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Mô tả các hành động đã thực hiện để cô lập vấn đề..."></textarea>
                     </ReportSection>
 
-                    <ReportSection title="Truy xuất nguồn gốc">
+                    <ReportSection 
+                        title="Truy xuất nguồn gốc"
+                        isCollapsible={true}
+                        isExpanded={!!expandedSections['traceability']}
+                        onToggle={() => toggleSection('traceability')}
+                    >
                         <TraceabilitySection 
                             traceabilityAnalysis={editableClaim.traceabilityAnalysis}
                             onUpdate={handleTraceabilityUpdate}
@@ -302,7 +396,13 @@ export const ClaimDetail: React.FC<{
                         />
                     </ReportSection>
 
-                    <ReportSection title="Phân tích Nguyên nhân gốc rễ (RCA)" dNumber="D4">
+                    <ReportSection 
+                        title="Phân tích Nguyên nhân gốc rễ (RCA)" 
+                        dNumber="D4"
+                        isCollapsible={true}
+                        isExpanded={!!expandedSections['D4']}
+                        onToggle={() => toggleSection('D4')}
+                    >
                         <div className="space-y-4">
                             <div>
                                <label htmlFor="analysisMethod" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phương pháp phân tích</label>
@@ -323,19 +423,60 @@ export const ClaimDetail: React.FC<{
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nguyên nhân gốc rễ</label>
                                 <textarea name="rootCauseAnalysis.rootCause" value={editableClaim.rootCauseAnalysis.rootCause} onChange={handleChange} readOnly={!canEditInvestigation} rows={3} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200" placeholder="Mô tả nguyên nhân chính..."></textarea>
                             </div>
+                            <div className="pt-4 border-t dark:border-gray-700/50">
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tài liệu đính kèm RCA</p>
+                                    {canEditInvestigation && (
+                                        <div>
+                                            <label htmlFor="rca-file-upload" className="cursor-pointer text-sm font-medium text-ykk-blue hover:underline">
+                                                <div className="flex items-center">
+                                                    <PaperclipIcon className="w-4 h-4 mr-1" />
+                                                    <span>Thêm tệp</span>
+                                                </div>
+                                            </label>
+                                            <input id="rca-file-upload" type="file" className="sr-only" multiple onChange={handleRcaFileAdd} />
+                                        </div>
+                                    )}
+                                </div>
+                                <AttachmentList attachments={editableClaim.rootCauseAnalysis.attachments} onRemove={handleRcaFileRemove} isEditable={canEditInvestigation} />
+                            </div>
                         </div>
                     </ReportSection>
 
-                     <ReportSection title="Hành động khắc phục" dNumber="D5">
+                     <ReportSection 
+                        title="Hành động khắc phục" 
+                        dNumber="D5"
+                        isCollapsible={true}
+                        isExpanded={!!expandedSections['D5']}
+                        onToggle={() => toggleSection('D5')}
+                    >
                          <textarea name="correctiveActions" value={editableClaim.correctiveActions} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Mô tả các hành động khắc phục..."></textarea>
                     </ReportSection>
-                     <ReportSection title="Hành động phòng ngừa" dNumber="D6">
+                     <ReportSection 
+                        title="Hành động phòng ngừa" 
+                        dNumber="D6"
+                        isCollapsible={true}
+                        isExpanded={!!expandedSections['D6']}
+                        onToggle={() => toggleSection('D6')}
+                     >
                          <textarea name="preventiveActions" value={editableClaim.preventiveActions} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Mô tả các hành động phòng ngừa tái diễn..."></textarea>
                     </ReportSection>
-                     <ReportSection title="Xác nhận hiệu quả" dNumber="D7">
+                     <ReportSection 
+                        title="Xác nhận hiệu quả" 
+                        dNumber="D7"
+                        isCollapsible={true}
+                        isExpanded={!!expandedSections['D7']}
+                        onToggle={() => toggleSection('D7')}
+                    >
                          <textarea name="effectivenessValidation" value={editableClaim.effectivenessValidation} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Mô tả cách xác nhận hiệu quả của các hành động..."></textarea>
                     </ReportSection>
-                     <ReportSection title="Đóng Claim" dNumber="D8">
+                     <ReportSection 
+                        title="Đóng Claim" 
+                        dNumber="D8"
+                        isCollapsible={true}
+                        isExpanded={!!expandedSections['D8']}
+                        onToggle={() => toggleSection('D8')}
+                    >
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tóm tắt đóng</label>

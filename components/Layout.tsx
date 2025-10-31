@@ -1,11 +1,13 @@
 // FIX: Create the Layout component to provide the main application structure.
+// FIX: Import `useState` from React to resolve 'Cannot find name' error and fix import syntax.
 import React, { useState } from 'react';
 import {
   DashboardIcon, ClaimsIcon, ReportsIcon, SettingsIcon, BellIcon, ChevronDownIcon, SunIcon, MoonIcon, CheckCircleIcon
 } from './Icons';
 import { useTheme } from '../context/ThemeContext';
 import { permissionService } from '../services/permissionService';
-import { User } from '../types';
+import { User, AppNotification, Claim } from '../types';
+import { NotificationBell } from './NotificationBell';
 
 const NavLink: React.FC<{
   icon: React.ReactNode;
@@ -31,7 +33,7 @@ const Sidebar: React.FC<{ onNavigate: (view: string) => void; currentView: strin
     const navItems = [
       { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon className="w-5 h-5" />, canView: () => true },
       { id: 'claimsboard', label: 'Claims Board', icon: <ClaimsIcon className="w-5 h-5" />, canView: () => true },
-      { id: 'reports', label: 'Báo cáo', icon: <ReportsIcon className="w-5 h-5" />, canView: permissionService.canViewReports },
+      { id: 'reports', label: 'Báo cáo & Phân tích', icon: <ReportsIcon className="w-5 h-5" />, canView: permissionService.canViewReports },
       { id: 'settings', label: 'Cài đặt', icon: <SettingsIcon className="w-5 h-5" />, canView: permissionService.canViewSettings },
     ];
   
@@ -55,7 +57,16 @@ const Sidebar: React.FC<{ onNavigate: (view: string) => void; currentView: strin
     );
 };
   
-const Header: React.FC<{ user: User, allUsers: User[], setCurrentUser: (user: User) => void }> = ({ user, allUsers, setCurrentUser }) => {
+const Header: React.FC<{ 
+    user: User, 
+    allUsers: User[], 
+    setCurrentUser: (user: User) => void,
+    notifications: AppNotification[],
+    onMarkAllNotificationsAsRead: () => void,
+    onNavigateToClaim: (claim: Claim) => void,
+    claims: Claim[],
+    onNavigate: (view: string) => void,
+}> = ({ user, allUsers, setCurrentUser, notifications, onMarkAllNotificationsAsRead, onNavigateToClaim, claims, onNavigate }) => {
     const { theme, toggleTheme } = useTheme();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -73,10 +84,13 @@ const Header: React.FC<{ user: User, allUsers: User[], setCurrentUser: (user: Us
             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
                 {theme === 'light' ? <MoonIcon className="w-5 h-5" /> : <SunIcon className="w-5 h-5" />}
             </button>
-          <button className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-            <BellIcon className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
+            <NotificationBell 
+                notifications={notifications}
+                onMarkAllRead={onMarkAllNotificationsAsRead}
+                onNavigateToClaim={onNavigateToClaim}
+                claims={claims}
+                onNavigate={onNavigate}
+            />
           <div className="relative">
             <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
                 <img
@@ -120,12 +134,25 @@ export const Layout: React.FC<{
   user: User;
   allUsers: User[];
   setCurrentUser: (user: User) => void;
-}> = ({ children, onNavigate, currentView, user, allUsers, setCurrentUser }) => {
+  notifications: AppNotification[];
+  onMarkAllNotificationsAsRead: () => void;
+  onNavigateToClaim: (claim: Claim) => void;
+  claims: Claim[];
+}> = ({ children, onNavigate, currentView, user, allUsers, setCurrentUser, notifications, onMarkAllNotificationsAsRead, onNavigateToClaim, claims }) => {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans">
         <Sidebar onNavigate={onNavigate} currentView={currentView} user={user} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header user={user} allUsers={allUsers} setCurrentUser={setCurrentUser} />
+          <Header 
+            user={user} 
+            allUsers={allUsers} 
+            setCurrentUser={setCurrentUser} 
+            notifications={notifications}
+            onMarkAllNotificationsAsRead={onMarkAllNotificationsAsRead}
+            onNavigateToClaim={onNavigateToClaim}
+            claims={claims}
+            onNavigate={onNavigate}
+          />
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
             {children}
           </main>

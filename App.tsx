@@ -1,12 +1,13 @@
 // FIX: Create the main App component to manage state and render views.
 import React, { useState, Suspense, lazy } from 'react';
 import { Layout } from './components/Layout';
-import { Claim, ClaimStatus, User, Comment } from './types';
-import { claims as mockClaims, users as mockUsers, currentUser as loggedInUser } from './data/mockData';
+import { Claim, ClaimStatus, User, Comment, AppNotification } from './types';
+import { claims as mockClaims, users as mockUsers, currentUser as loggedInUser, mockNotifications } from './data/mockData';
 import { emailService } from './services/emailService';
 import { notificationService } from './services/notificationService';
 import { permissionService } from './services/permissionService';
 import { LoadingSpinner } from './components/Loading';
+import { activityService } from './services/activityService';
 
 // Lazy load page components for code splitting
 const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -24,6 +25,7 @@ function App() {
     const [currentView, setCurrentView] = useState('dashboard'); // dashboard, claimsboard, claimDetail, reports, settings
     const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
 
     const handleNavigate = (view: string) => {
         if (view === 'reports' && !permissionService.canViewReports(currentUser)) {
@@ -43,6 +45,12 @@ function App() {
         setCurrentView('claimDetail');
     };
 
+    const handleNavigateFromNotif = (claim: Claim) => {
+        // Mark notifications related to this claim as read
+        setNotifications(prev => prev.map(n => n.claimId === claim.id ? {...n, isRead: true} : n));
+        handleClaimSelect(claim);
+    };
+
     const handleBackToList = () => {
         setSelectedClaim(null);
         setCurrentView('claimsboard');
@@ -50,7 +58,15 @@ function App() {
 
     const handleUpdateClaim = (updatedClaim: Claim) => {
         const oldClaim = claims.find(c => c.id === updatedClaim.id);
+        if (!oldClaim) return;
+        
         const oldStatus = oldClaim?.status;
+        
+        // Generate notifications from changes
+        const newNotifications = activityService.generateNotifications(oldClaim, updatedClaim, currentUser);
+        if (newNotifications.length > 0) {
+            setNotifications(prev => [...newNotifications, ...prev]);
+        }
 
         setClaims(prevClaims => prevClaims.map(c => c.id === updatedClaim.id ? updatedClaim : c));
         setSelectedClaim(updatedClaim); // Update the selected claim view as well
@@ -80,6 +96,17 @@ function App() {
         if (updatedSelectedClaim) {
             setSelectedClaim(updatedSelectedClaim);
         }
+        
+        // Add notification for new comment
+        const newNotif: AppNotification = {
+            id: `notif-${Date.now()}`,
+            message: `<strong>${currentUser.name}</strong> đã thêm một bình luận vào claim <strong>${claimId}</strong>.`,
+            claimId,
+            userId: currentUser.id,
+            isRead: false,
+            timestamp: new Date().toISOString()
+        };
+        setNotifications(prev => [newNotif, ...prev]);
     };
 
     const handleCreateClaim = (newClaimData: Omit<Claim, 'id' | 'createdAt' | 'status' | 'creator' | 'comments'>) => {
@@ -95,6 +122,21 @@ function App() {
         setIsCreateModalOpen(false);
         notificationService.notify(`Claim mới ${newClaim.id} đã được tạo.`, { type: 'success', duration: 3000 });
         emailService.sendNewClaimNotification(newClaim);
+
+        // Add notification for new claim
+         const newNotif: AppNotification = {
+            id: `notif-${Date.now()}`,
+            message: `Claim mới <strong>${newClaim.id}</strong> đã được tạo bởi <strong>${currentUser.name}</strong>.`,
+            claimId: newClaim.id,
+            userId: currentUser.id,
+            isRead: false,
+            timestamp: new Date().toISOString()
+        };
+        setNotifications(prev => [newNotif, ...prev]);
+    };
+    
+    const handleMarkAllNotificationsAsRead = () => {
+        setNotifications(prev => prev.map(n => ({...n, isRead: true})));
     };
 
     const handleAddUser = (user: User) => {
@@ -117,7 +159,7 @@ function App() {
             case 'claimsboard':
                 return <ClaimsBoard claims={claims} onClaimSelect={handleClaimSelect} onNewClaimClick={() => setIsCreateModalOpen(true)} currentUser={currentUser}/>;
             case 'reports':
-                return <ReportsPage />;
+                return <ReportsPage notifications={notifications} users={users} claims={claims} onClaimSelect={handleNavigateFromNotif}/>;
             case 'settings':
                 return <SettingsPage users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} />;
             default:
@@ -127,7 +169,17 @@ function App() {
 
     return (
         <div className="app">
-            <Layout onNavigate={handleNavigate} currentView={currentView} user={currentUser} allUsers={users} setCurrentUser={setCurrentUser}>
+            <Layout 
+                onNavigate={handleNavigate} 
+                currentView={currentView} 
+                user={currentUser} 
+                allUsers={users} 
+                setCurrentUser={setCurrentUser}
+                notifications={notifications}
+                onMarkAllNotificationsAsRead={handleMarkAllNotificationsAsRead}
+                onNavigateToClaim={handleNavigateFromNotif}
+                claims={claims}
+            >
                 <Suspense fallback={<LoadingSpinner />}>
                     {renderContent()}
                 </Suspense>

@@ -1,4 +1,4 @@
-import { User, Claim, ClaimSeverity, ClaimStatus, FishboneAnalysisData, TraceabilityAnalysis, RootCauseAnalysis, UserRole } from '../types';
+import { User, Claim, ClaimSeverity, ClaimStatus, FishboneAnalysisData, TraceabilityAnalysis, RootCauseAnalysis, UserRole, FilterStatus, AppNotification } from '../types';
 
 export const users: User[] = [
     { id: 'user-1', name: 'Nguyễn Văn An', avatarUrl: 'https://i.pravatar.cc/150?u=user-1', role: UserRole.QcManager, email: 'an.nguyen@ykk.com', department: 'QC' },
@@ -25,9 +25,9 @@ export const createDefaultFishboneData = (): FishboneAnalysisData => ({
 });
 
 const defaultTraceability: TraceabilityAnalysis = {
-    originalPoLots: { data: [], departments: { shipping: false, finishing: false, warehouse: false, planning: false, qc: false }},
-    otherPoSameLot: { data: [], departments: { shipping: false, finishing: false, warehouse: false, planning: false, qc: false }},
-    otherPoSameMaterial: { data: [], departments: { shipping: false, finishing: false, warehouse: false, planning: false, qc: false }},
+    originalPoLots: { tableData: [], involvedDepartments: [], personInChargeName: '', dataRetrievalDate: null, filteringDate: null, returnDate: null, filteredDefectCount: 0, filterStatus: FilterStatus.NotFiltered, notes: '' },
+    otherPoSameLot: { tableData: [], involvedDepartments: [], personInChargeName: '', dataRetrievalDate: null, filteringDate: null, returnDate: null, filteredDefectCount: 0, filterStatus: FilterStatus.NotFiltered, notes: '' },
+    otherPoSameMaterial: { tableData: [], involvedDepartments: [], personInChargeName: '', dataRetrievalDate: null, filteringDate: null, returnDate: null, filteredDefectCount: 0, filterStatus: FilterStatus.NotFiltered, notes: '' },
     summary: 'Chưa có thông tin'
 };
 
@@ -38,6 +38,7 @@ const defaultRootCauseAnalysis: RootCauseAnalysis = {
     rootCause: '',
     escapePoint: '',
     confirmationEvidence: '',
+    attachments: [],
 };
 
 export const claims: Claim[] = [
@@ -73,16 +74,25 @@ export const claims: Claim[] = [
         effectivenessValidation: 'Chưa xác định',
         closureSummary: '',
         customerConfirmation: false,
+        completedPrs: '',
         traceabilityAnalysis: {
             originalPoLots: { 
-                data: [
-                    { id: 'r1-1', lot: 'LOT-A123', date: '2023-10-20', machine: 'M-05', quantity: '500', notes: 'Kiểm tra OK' },
-                    { id: 'r1-2', lot: 'LOT-A124', date: '2023-10-21', machine: 'M-05', quantity: '500', notes: 'Lô nghi ngờ' },
+                tableData: [
+                    ['Mã Lô', 'Ngày SX', 'Máy', 'Số Lượng', 'Ghi Chú'],
+                    ['LOT-A123', '2023-10-20', 'M-05', '500', 'Kiểm tra OK'],
+                    ['LOT-A124', '2023-10-21', 'M-05', '500', 'Lô nghi ngờ']
                 ], 
-                departments: { shipping: true, finishing: false, warehouse: true, planning: false, qc: true }
+                involvedDepartments: ['QC', 'Kho'],
+                personInChargeName: 'Lê Minh Cường',
+                dataRetrievalDate: '2023-10-27',
+                filteringDate: '2023-10-28',
+                returnDate: null,
+                filteredDefectCount: 5,
+                filterStatus: FilterStatus.Filtering,
+                notes: 'Lô A124 cần được ưu tiên kiểm tra trước do nghi ngờ cao.',
             },
-            otherPoSameLot: { data: [], departments: { shipping: false, finishing: false, warehouse: false, planning: false, qc: false }},
-            otherPoSameMaterial: { data: [], departments: { shipping: false, finishing: false, warehouse: false, planning: false, qc: false }},
+            otherPoSameLot: { tableData: [], involvedDepartments: [], personInChargeName: '', dataRetrievalDate: null, filteringDate: null, returnDate: null, filteredDefectCount: 0, filterStatus: FilterStatus.NotFiltered, notes: '' },
+            otherPoSameMaterial: { tableData: [], involvedDepartments: [], personInChargeName: '', dataRetrievalDate: null, filteringDate: null, returnDate: null, filteredDefectCount: 0, filterStatus: FilterStatus.NotFiltered, notes: '' },
             summary: 'Lô LOT-A124 có vấn đề, cần kiểm tra lại các PO liên quan.'
         },
     },
@@ -114,6 +124,7 @@ export const claims: Claim[] = [
         effectivenessValidation: '',
         closureSummary: '',
         customerConfirmation: false,
+        completedPrs: '',
         traceabilityAnalysis: defaultTraceability,
     },
     {
@@ -141,12 +152,14 @@ export const claims: Claim[] = [
         rootCauseAnalysis: {
             ...defaultRootCauseAnalysis,
             rootCause: 'Nhân viên cài đặt thông số máy cắt sai.',
+            attachments: [],
         },
         correctiveActions: 'Đào tạo lại nhân viên vận hành máy cắt. Thực hiện kiểm tra chéo thông số trước khi sản xuất hàng loạt.',
         preventiveActions: 'Cập nhật quy trình kiểm tra, thêm bước xác nhận thông số bởi trưởng ca.',
         effectivenessValidation: 'Kiểm tra 5 lô hàng tiếp theo, không phát hiện lỗi tương tự.',
         closureSummary: 'Vấn đề đã được giải quyết triệt để. Khách hàng hài lòng với phương án xử lý.',
         customerConfirmation: true,
+        completedPrs: 'PR-5543, PR-5544',
         traceabilityAnalysis: defaultTraceability,
     },
     {
@@ -178,6 +191,7 @@ export const claims: Claim[] = [
         effectivenessValidation: '',
         closureSummary: '',
         customerConfirmation: false,
+        completedPrs: '',
         traceabilityAnalysis: defaultTraceability,
     },
     {
@@ -209,6 +223,43 @@ export const claims: Claim[] = [
         effectivenessValidation: '',
         closureSummary: '',
         customerConfirmation: false,
+        completedPrs: '',
         traceabilityAnalysis: defaultTraceability,
+    }
+];
+
+
+export const mockNotifications: AppNotification[] = [
+    {
+        id: 'notif-1',
+        message: `<strong>Trần Thị Bích</strong> đã thêm một bình luận vào claim <strong>CLM-001</strong>.`,
+        timestamp: '2023-10-29T10:00:00Z',
+        isRead: false,
+        claimId: 'CLM-001',
+        userId: 'user-2'
+    },
+    {
+        id: 'notif-2',
+        message: `Claim <strong>CLM-002</strong> đã được gán cho <strong>Lê Minh Cường</strong>.`,
+        timestamp: '2023-10-28T14:35:00Z',
+        isRead: false,
+        claimId: 'CLM-002',
+        userId: 'user-1'
+    },
+    {
+        id: 'notif-3',
+        message: `Trạng thái của claim <strong>CLM-003</strong> đã được cập nhật thành "<strong>Hoàn tất</strong>".`,
+        timestamp: '2023-09-20T16:00:00Z',
+        isRead: true,
+        claimId: 'CLM-003',
+        userId: 'user-5'
+    },
+    {
+        id: 'notif-4',
+        message: `<strong>Phạm Thị Dung</strong> đã cập nhật <strong>Hành động ngăn chặn tạm thời</strong> cho claim <strong>CLM-004</strong>.`,
+        timestamp: '2023-10-21T11:00:00Z',
+        isRead: true,
+        claimId: 'CLM-004',
+        userId: 'user-4'
     }
 ];

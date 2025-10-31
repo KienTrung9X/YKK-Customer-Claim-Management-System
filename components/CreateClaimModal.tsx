@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Claim, ClaimSeverity, User, TraceabilityAnalysis, RootCauseAnalysis, FishboneAnalysisData, Attachment } from '../types';
+import { Claim, ClaimSeverity, User, TraceabilityAnalysis, RootCauseAnalysis, FishboneAnalysisData, Attachment, FilterStatus } from '../types';
 import { users, createDefaultFishboneData } from '../data/mockData';
 import { XCircleIcon, PaperclipIcon } from './Icons';
 import { DEPARTMENTS } from '../constants';
@@ -16,11 +16,10 @@ const InputField: React.FC<{label: string, id: string, children: React.ReactNode
     </div>
 );
 
-// FIX: Initialize `data` as an empty array to match the `TraceabilityRow[]` type.
 const defaultTraceability: TraceabilityAnalysis = {
-    originalPoLots: { data: [], departments: { shipping: false, finishing: false, warehouse: false, planning: false, qc: false }},
-    otherPoSameLot: { data: [], departments: { shipping: false, finishing: false, warehouse: false, planning: false, qc: false }},
-    otherPoSameMaterial: { data: [], departments: { shipping: false, finishing: false, warehouse: false, planning: false, qc: false }},
+    originalPoLots: { tableData: [], involvedDepartments: [], personInChargeName: '', dataRetrievalDate: null, filteringDate: null, returnDate: null, filteredDefectCount: 0, filterStatus: FilterStatus.NotFiltered, notes: '' },
+    otherPoSameLot: { tableData: [], involvedDepartments: [], personInChargeName: '', dataRetrievalDate: null, filteringDate: null, returnDate: null, filteredDefectCount: 0, filterStatus: FilterStatus.NotFiltered, notes: '' },
+    otherPoSameMaterial: { tableData: [], involvedDepartments: [], personInChargeName: '', dataRetrievalDate: null, filteringDate: null, returnDate: null, filteredDefectCount: 0, filterStatus: FilterStatus.NotFiltered, notes: '' },
     summary: ''
 };
 
@@ -33,6 +32,7 @@ const defaultRootCauseAnalysis: RootCauseAnalysis = {
     rootCause: '',
     escapePoint: '',
     confirmationEvidence: '',
+    attachments: [],
 };
 
 
@@ -50,6 +50,7 @@ export const CreateClaimModal: React.FC<CreateClaimModalProps> = ({ onClose, onC
         assigneeId: users[0].id,
         severity: ClaimSeverity.Medium,
         deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        completedPrs: '',
     });
 
     const [attachments, setAttachments] = useState<File[]>([]);
@@ -124,6 +125,9 @@ export const CreateClaimModal: React.FC<CreateClaimModalProps> = ({ onClose, onC
                             </InputField>
                             <InputField label="Mã sản phẩm" id="productCode">
                                 <input type="text" id="productCode" name="productCode" value={formData.productCode} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"/>
+                            </InputField>
+                            <InputField label="PR hoàn thành (nhiều PR cách nhau bằng dấu phẩy)" id="completedPrs">
+                                <input type="text" id="completedPrs" name="completedPrs" value={formData.completedPrs} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"/>
                             </InputField>
                             <InputField label="Bộ phận chịu trách nhiệm" id="responsibleDepartment">
                                 <select id="responsibleDepartment" name="responsibleDepartment" value={formData.responsibleDepartment} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200">
