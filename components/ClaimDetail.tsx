@@ -81,6 +81,8 @@ export const ClaimDetail: React.FC<{
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
+    const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+    const [isUploadingRcaFiles, setIsUploadingRcaFiles] = useState(false);
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         'D3': false,
         'traceability': false,
@@ -135,6 +137,7 @@ export const ClaimDetail: React.FC<{
     const handleFileAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles = Array.from(e.target.files);
+            setIsUploadingFiles(true);
             
             try {
                 const uploadPromises = newFiles.map(async (file: File) => {
@@ -157,6 +160,9 @@ export const ClaimDetail: React.FC<{
             } catch (error) {
                 console.error('Error uploading files:', error);
                 notificationService.notify('Lỗi khi upload file', { type: 'error', duration: 3000 });
+            } finally {
+                setIsUploadingFiles(false);
+                e.target.value = '';
             }
         }
     };
@@ -171,6 +177,7 @@ export const ClaimDetail: React.FC<{
     const handleRcaFileAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles = Array.from(e.target.files);
+            setIsUploadingRcaFiles(true);
             
             try {
                 const uploadPromises = newFiles.map(async (file: File) => {
@@ -196,6 +203,9 @@ export const ClaimDetail: React.FC<{
             } catch (error) {
                 console.error('Error uploading RCA files:', error);
                 notificationService.notify('Lỗi khi upload file', { type: 'error', duration: 3000 });
+            } finally {
+                setIsUploadingRcaFiles(false);
+                e.target.value = '';
             }
         }
     };
@@ -383,13 +393,17 @@ export const ClaimDetail: React.FC<{
                                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tài liệu đính kèm chung</p>
                                     {canEditAnything && (
                                         <div>
-                                            <label htmlFor="file-upload-detail" className="cursor-pointer text-sm font-medium text-ykk-blue hover:underline">
+                                            <label htmlFor="file-upload-detail" className={`cursor-pointer text-sm font-medium text-ykk-blue hover:underline ${isUploadingFiles ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <div className="flex items-center">
-                                                    <PaperclipIcon className="w-4 h-4 mr-1" />
-                                                    <span>Thêm tệp</span>
+                                                    {isUploadingFiles ? (
+                                                        <RefreshCwIcon className="w-4 h-4 mr-1 animate-spin" />
+                                                    ) : (
+                                                        <PaperclipIcon className="w-4 h-4 mr-1" />
+                                                    )}
+                                                    <span>{isUploadingFiles ? 'Đang upload...' : 'Thêm tệp'}</span>
                                                 </div>
                                             </label>
-                                            <input id="file-upload-detail" type="file" className="sr-only" multiple onChange={handleFileAdd} />
+                                            <input id="file-upload-detail" type="file" className="sr-only" multiple onChange={handleFileAdd} disabled={isUploadingFiles} />
                                         </div>
                                     )}
                                 </div>
@@ -454,13 +468,17 @@ export const ClaimDetail: React.FC<{
                                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tài liệu đính kèm RCA</p>
                                     {canEditInvestigation && (
                                         <div>
-                                            <label htmlFor="rca-file-upload" className="cursor-pointer text-sm font-medium text-ykk-blue hover:underline">
+                                            <label htmlFor="rca-file-upload" className={`cursor-pointer text-sm font-medium text-ykk-blue hover:underline ${isUploadingRcaFiles ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <div className="flex items-center">
-                                                    <PaperclipIcon className="w-4 h-4 mr-1" />
-                                                    <span>Thêm tệp</span>
+                                                    {isUploadingRcaFiles ? (
+                                                        <RefreshCwIcon className="w-4 h-4 mr-1 animate-spin" />
+                                                    ) : (
+                                                        <PaperclipIcon className="w-4 h-4 mr-1" />
+                                                    )}
+                                                    <span>{isUploadingRcaFiles ? 'Đang upload...' : 'Thêm tệp'}</span>
                                                 </div>
                                             </label>
-                                            <input id="rca-file-upload" type="file" className="sr-only" multiple onChange={handleRcaFileAdd} />
+                                            <input id="rca-file-upload" type="file" className="sr-only" multiple onChange={handleRcaFileAdd} disabled={isUploadingRcaFiles} />
                                         </div>
                                     )}
                                 </div>

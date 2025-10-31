@@ -9,6 +9,7 @@ import { permissionService } from './services/permissionService';
 import { LoadingSpinner } from './components/Loading';
 import { activityService } from './services/activityService';
 import { databaseService } from './services/databaseService';
+import { ToastContainer } from './components/Toast';
 
 // Lazy load page components for code splitting
 const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -28,6 +29,16 @@ function App() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [loading, setLoading] = useState(true);
+    const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info'; duration?: number }>>([]);
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info', duration = 3000) => {
+        const id = `toast-${Date.now()}`;
+        setToasts(prev => [...prev, { id, message, type, duration }]);
+    };
+
+    const removeToast = (id: string) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
 
     useEffect(() => {
         loadData();
@@ -117,6 +128,7 @@ function App() {
 
             setClaims(prevClaims => prevClaims.map(c => c.id === updatedClaim.id ? updatedClaim : c));
             setSelectedClaim(updatedClaim);
+            showToast(`Claim ${updatedClaim.id} đã được lưu thành công!`, 'success');
             notificationService.notify(`Claim ${updatedClaim.id} đã được cập nhật.`, { type: 'success', duration: 3000 });
 
             if (oldStatus && oldStatus !== updatedClaim.status) {
@@ -124,6 +136,7 @@ function App() {
             }
         } catch (error) {
             console.error('Error updating claim:', error);
+            showToast('Lỗi khi lưu claim', 'error');
             notificationService.notify('Lỗi khi cập nhật claim', { type: 'error', duration: 3000 });
         }
     };
@@ -182,6 +195,7 @@ function App() {
             await databaseService.createClaim(newClaim);
             setClaims(prev => [newClaim, ...prev]);
             setIsCreateModalOpen(false);
+            showToast(`Claim ${newClaim.id} đã được tạo thành công!`, 'success');
             notificationService.notify(`Claim mới ${newClaim.id} đã được tạo.`, { type: 'success', duration: 3000 });
             emailService.sendNewClaimNotification(newClaim);
 
@@ -197,6 +211,7 @@ function App() {
             setNotifications(prev => [newNotif, ...prev]);
         } catch (error) {
             console.error('Error creating claim:', error);
+            showToast('Lỗi khi tạo claim', 'error');
             notificationService.notify('Lỗi khi tạo claim', { type: 'error', duration: 3000 });
         }
     };
@@ -274,6 +289,7 @@ function App() {
             <Suspense fallback={null}>
               {isCreateModalOpen && <CreateClaimModal onClose={() => setIsCreateModalOpen(false)} onCreateClaim={handleCreateClaim} />}
             </Suspense>
+            <ToastContainer toasts={toasts} onRemove={removeToast} />
         </div>
     );
 }
