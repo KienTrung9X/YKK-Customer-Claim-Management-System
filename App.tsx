@@ -53,31 +53,14 @@ function App() {
             ]);
             console.log('Loaded claims from DB:', dbClaims.map(c => ({ id: c.id, attachments: c.attachments })));
             
-            if (dbUsers.length === 0) {
-                await Promise.all(mockUsers.map(u => databaseService.createUser(u)));
-                setUsers(mockUsers);
-            } else {
-                setUsers(dbUsers);
-            }
-            
-            if (dbClaims.length === 0) {
-                await Promise.all(mockClaims.map(c => databaseService.createClaim(c)));
-                setClaims(mockClaims);
-            } else {
-                setClaims(dbClaims);
-            }
-            
-            if (dbNotifications.length === 0) {
-                await Promise.all(mockNotifications.map(n => databaseService.createNotification(n)));
-                setNotifications(mockNotifications);
-            } else {
-                setNotifications(dbNotifications);
-            }
+            setUsers(dbUsers.length > 0 ? dbUsers : mockUsers);
+            setClaims(dbClaims);
+            setNotifications(dbNotifications);
         } catch (error) {
             console.error('Error loading data:', error);
             setUsers(mockUsers);
-            setClaims(mockClaims);
-            setNotifications(mockNotifications);
+            setClaims([]);
+            setNotifications([]);
         } finally {
             setLoading(false);
         }
