@@ -98,16 +98,16 @@ export const ClaimsBoard: React.FC<ClaimsBoardProps> = ({ claims, onClaimSelect,
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-5">
                 {statusColumns.map(column => {
                     const claimsInColumn = claims.filter(c => c.status === column.status);
                     return (
-                        <div key={column.status} className="bg-gray-100 dark:bg-gray-800/50 rounded-xl p-3 flex-shrink-0 w-full">
+                        <div key={column.status} className="bg-gray-100 dark:bg-gray-800/50 rounded-xl p-3 flex-shrink-0 w-full min-w-0">
                             <div className="flex justify-between items-center mb-3 px-1">
-                                <h3 className="font-semibold text-gray-700 dark:text-gray-300">{column.title}</h3>
-                                <span className="text-sm font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">{claimsInColumn.length}</span>
+                                <h3 className="font-semibold text-sm lg:text-base text-gray-700 dark:text-gray-300">{column.title}</h3>
+                                <span className="text-xs lg:text-sm font-bold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">{claimsInColumn.length}</span>
                             </div>
-                            <div className="space-y-3 h-[calc(100vh-200px)] overflow-y-auto pr-1">
+                            <div className="space-y-3 max-h-[60vh] lg:h-[calc(100vh-200px)] overflow-y-auto pr-1">
                                 {claimsInColumn.map(claim => (
                                     <ClaimCard key={claim.id} claim={claim} onClaimSelect={onClaimSelect} />
                                 ))}

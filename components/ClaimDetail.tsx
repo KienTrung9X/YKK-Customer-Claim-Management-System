@@ -10,6 +10,7 @@ import { TraceabilitySection } from './TraceabilitySection';
 import { aiService } from '../services/aiService';
 import { notificationService } from '../services/notificationService';
 import { ReportModal } from './ReportModal';
+import { storageService } from '../services/storageService';
 
 
 // A generic section component for the 8D report
@@ -131,20 +132,32 @@ export const ClaimDetail: React.FC<{
         }));
     };
     
-    const handleFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles = Array.from(e.target.files);
-            // FIX: Explicitly type `file` as `File` to resolve type inference issues.
-            const newAttachments: Attachment[] = newFiles.map((file: File) => ({
-                name: file.name,
-                url: URL.createObjectURL(file), // Use object URL for preview, though it's temporary
-                type: file.type.startsWith('image/') ? 'image' : 'document',
-            }));
+            
+            try {
+                const uploadPromises = newFiles.map(async (file: File) => {
+                    const url = await storageService.uploadFile(file, 'attachments');
+                    return {
+                        name: file.name,
+                        url,
+                        type: file.type.startsWith('image/') ? 'image' as const : 'document' as const,
+                    };
+                });
 
-            setEditableClaim(prev => ({
-                ...prev,
-                attachments: [...prev.attachments, ...newAttachments]
-            }));
+                const newAttachments = await Promise.all(uploadPromises);
+
+                setEditableClaim(prev => ({
+                    ...prev,
+                    attachments: [...prev.attachments, ...newAttachments]
+                }));
+                
+                notificationService.notify('Upload file thành công', { type: 'success', duration: 2000 });
+            } catch (error) {
+                console.error('Error uploading files:', error);
+                notificationService.notify('Lỗi khi upload file', { type: 'error', duration: 3000 });
+            }
         }
     };
 
@@ -155,22 +168,35 @@ export const ClaimDetail: React.FC<{
         }));
     };
     
-    const handleRcaFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleRcaFileAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles = Array.from(e.target.files);
-            const newAttachments: Attachment[] = newFiles.map((file: File) => ({
-                name: file.name,
-                url: URL.createObjectURL(file),
-                type: file.type.startsWith('image/') ? 'image' : 'document',
-            }));
+            
+            try {
+                const uploadPromises = newFiles.map(async (file: File) => {
+                    const url = await storageService.uploadFile(file, 'rca-attachments');
+                    return {
+                        name: file.name,
+                        url,
+                        type: file.type.startsWith('image/') ? 'image' as const : 'document' as const,
+                    };
+                });
 
-            setEditableClaim(prev => ({
-                ...prev,
-                rootCauseAnalysis: {
-                    ...prev.rootCauseAnalysis,
-                    attachments: [...prev.rootCauseAnalysis.attachments, ...newAttachments]
-                }
-            }));
+                const newAttachments = await Promise.all(uploadPromises);
+
+                setEditableClaim(prev => ({
+                    ...prev,
+                    rootCauseAnalysis: {
+                        ...prev.rootCauseAnalysis,
+                        attachments: [...prev.rootCauseAnalysis.attachments, ...newAttachments]
+                    }
+                }));
+                
+                notificationService.notify('Upload file thành công', { type: 'success', duration: 2000 });
+            } catch (error) {
+                console.error('Error uploading RCA files:', error);
+                notificationService.notify('Lỗi khi upload file', { type: 'error', duration: 3000 });
+            }
         }
     };
 
