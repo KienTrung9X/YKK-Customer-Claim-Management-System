@@ -107,11 +107,25 @@ export const Dashboard: React.FC<{ claims: Claim[], onClaimSelect: (claim: Claim
     }).length;
     
     // Biểu đồ theo tuần (4 tuần gần nhất)
+    const now = new Date();
+    const weekData = [0, 0, 0, 0];
+    
+    claims.forEach(claim => {
+        const createdDate = new Date(claim.createdAt);
+        const diffTime = now.getTime() - createdDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const weekIndex = Math.floor(diffDays / 7);
+        
+        if (weekIndex >= 0 && weekIndex < 4) {
+            weekData[3 - weekIndex]++;
+        }
+    });
+    
     const chartData = [
-        { name: 'Tuần 1', claims: 0 },
-        { name: 'Tuần 2', claims: 0 },
-        { name: 'Tuần 3', claims: 0 },
-        { name: 'Tuần 4', claims: 0 },
+        { name: 'Tuần 1', claims: weekData[0] },
+        { name: 'Tuần 2', claims: weekData[1] },
+        { name: 'Tuần 3', claims: weekData[2] },
+        { name: 'Tuần 4', claims: weekData[3] },
     ];
 
     // Phân bổ loại lỗi
