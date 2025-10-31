@@ -374,7 +374,7 @@ export const ClaimDetail: React.FC<{
 
     return (
         <div className="space-y-6">
-            <div className="sticky top-0 z-10 bg-ykk-background dark:bg-gray-900 py-3 -mt-6 -mx-6 px-4 md:px-6 shadow-sm">
+            <div className="sticky top-0 z-10 bg-ykk-background dark:bg-gray-900 py-2 px-4 shadow-sm border-b border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center">
                         <button onClick={onBack} className="text-ykk-blue hover:underline text-sm">&larr; Quay lại</button>
