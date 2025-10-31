@@ -64,7 +64,13 @@ const UrgentClaimsTable: React.FC<{ claims: Claim[], onClaimSelect: (claim: Clai
                         </tr>
                     </thead>
                     <tbody>
-                        {urgentClaims.map(claim => {
+                        {urgentClaims.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                                    Không có claim nào cần xử lý gấp
+                                </td>
+                            </tr>
+                        ) : urgentClaims.map(claim => {
                             const { timeLeft, isOverdue } = getTimeLeft(claim.deadline);
                             return (
                                 <tr key={claim.id} className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onClick={() => onClaimSelect(claim)}>
@@ -92,29 +98,38 @@ const UrgentClaimsTable: React.FC<{ claims: Claim[], onClaimSelect: (claim: Clai
 };
 
 export const Dashboard: React.FC<{ claims: Claim[], onClaimSelect: (claim: Claim) => void }> = ({ claims, onClaimSelect }) => {
+    // Tính toán dữ liệu thực tế
+    const totalClaims = claims.length;
+    const inProgressClaims = claims.filter(c => c.status === 'Đang xử lý').length;
+    const overdueClaims = claims.filter(c => {
+        const { isOverdue } = getTimeLeft(c.deadline);
+        return isOverdue && c.status !== 'Hoàn tất';
+    }).length;
+    
+    // Biểu đồ theo tuần (4 tuần gần nhất)
     const chartData = [
-        { name: 'Tuần 1', claims: 30 },
-        { name: 'Tuần 2', claims: 42 },
-        { name: 'Tuần 3', claims: 25 },
-        { name: 'Tuần 4', claims: 38 },
+        { name: 'Tuần 1', claims: 0 },
+        { name: 'Tuần 2', claims: 0 },
+        { name: 'Tuần 3', claims: 0 },
+        { name: 'Tuần 4', claims: 0 },
     ];
 
-    const pieData = [
-        { name: 'Màu sắc', value: 400 },
-        { name: 'Kích thước', value: 300 },
-        { name: 'Độ bền', value: 300 },
-        { name: 'Bề mặt', value: 200 },
-        { name: 'Khác', value: 100 },
-    ];
+    // Phân bổ loại lỗi
+    const defectTypes: Record<string, number> = {};
+    claims.forEach(claim => {
+        defectTypes[claim.defectType] = (defectTypes[claim.defectType] || 0) + 1;
+    });
+    
+    const pieData = Object.entries(defectTypes).map(([name, value]) => ({ name, value }));
     const PIE_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
 
     return (
         <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <KpiCard title="Tổng số Claim" value="125" change="+15%" changeType="increase" icon={<ClaimsIcon className="w-6 h-6 text-ykk-blue"/>} />
-                <KpiCard title="Đang xử lý" value="18" icon={<ClockIcon className="w-6 h-6 text-ykk-blue"/>} />
-                <KpiCard title="Quá hạn" value="3" change="+2" changeType="decrease" icon={<AlertTriangleIcon className="w-6 h-6 text-ykk-blue"/>} />
-                <KpiCard title="Phản hồi TB" value="3.2h" change="-0.5h" changeType="increase" icon={<CheckCircleIcon className="w-6 h-6 text-ykk-blue"/>} />
+                <KpiCard title="Tổng số Claim" value={totalClaims.toString()} icon={<ClaimsIcon className="w-6 h-6 text-ykk-blue"/>} />
+                <KpiCard title="Đang xử lý" value={inProgressClaims.toString()} icon={<ClockIcon className="w-6 h-6 text-ykk-blue"/>} />
+                <KpiCard title="Quá hạn" value={overdueClaims.toString()} icon={<AlertTriangleIcon className="w-6 h-6 text-ykk-blue"/>} />
+                <KpiCard title="Hoàn tất" value={claims.filter(c => c.status === 'Hoàn tất').length.toString()} icon={<CheckCircleIcon className="w-6 h-6 text-ykk-blue"/>} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-6">
