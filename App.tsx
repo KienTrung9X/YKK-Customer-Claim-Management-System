@@ -1,5 +1,5 @@
 // FIX: Create the main App component to manage state and render views.
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Layout } from './components/Layout';
 import { Claim, ClaimStatus, User, Comment, AppNotification } from './types';
 import { claims as mockClaims, users as mockUsers, currentUser as loggedInUser, mockNotifications } from './data/mockData';
@@ -8,6 +8,7 @@ import { notificationService } from './services/notificationService';
 import { permissionService } from './services/permissionService';
 import { LoadingSpinner } from './components/Loading';
 import { activityService } from './services/activityService';
+import { databaseService } from './services/databaseService';
 
 // Lazy load page components for code splitting
 const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -19,13 +20,56 @@ const ReportsPage = lazy(() => import('./components/ReportsPage'));
 
 
 function App() {
-    const [claims, setClaims] = useState<Claim[]>(mockClaims);
-    const [users, setUsers] = useState<User[]>(mockUsers);
+    const [claims, setClaims] = useState<Claim[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [currentUser, setCurrentUser] = useState<User>(loggedInUser);
     const [currentView, setCurrentView] = useState('dashboard'); // dashboard, claimsboard, claimDetail, reports, settings
     const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        try {
+            const [dbUsers, dbClaims, dbNotifications] = await Promise.all([
+                databaseService.getUsers(),
+                databaseService.getClaims(),
+                databaseService.getNotifications()
+            ]);
+            
+            if (dbUsers.length === 0) {
+                await Promise.all(mockUsers.map(u => databaseService.createUser(u)));
+                setUsers(mockUsers);
+            } else {
+                setUsers(dbUsers);
+            }
+            
+            if (dbClaims.length === 0) {
+                await Promise.all(mockClaims.map(c => databaseService.createClaim(c)));
+                setClaims(mockClaims);
+            } else {
+                setClaims(dbClaims);
+            }
+            
+            if (dbNotifications.length === 0) {
+                await Promise.all(mockNotifications.map(n => databaseService.createNotification(n)));
+                setNotifications(mockNotifications);
+            } else {
+                setNotifications(dbNotifications);
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+            setUsers(mockUsers);
+            setClaims(mockClaims);
+            setNotifications(mockNotifications);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleNavigate = (view: string) => {
         if (view === 'reports' && !permissionService.canViewReports(currentUser)) {
@@ -56,60 +100,75 @@ function App() {
         setCurrentView('claimsboard');
     };
 
-    const handleUpdateClaim = (updatedClaim: Claim) => {
+    const handleUpdateClaim = async (updatedClaim: Claim) => {
         const oldClaim = claims.find(c => c.id === updatedClaim.id);
         if (!oldClaim) return;
         
         const oldStatus = oldClaim?.status;
         
-        // Generate notifications from changes
-        const newNotifications = activityService.generateNotifications(oldClaim, updatedClaim, currentUser);
-        if (newNotifications.length > 0) {
-            setNotifications(prev => [...newNotifications, ...prev]);
-        }
+        try {
+            await databaseService.updateClaim(updatedClaim);
+            
+            const newNotifications = activityService.generateNotifications(oldClaim, updatedClaim, currentUser);
+            if (newNotifications.length > 0) {
+                await Promise.all(newNotifications.map(n => databaseService.createNotification(n)));
+                setNotifications(prev => [...newNotifications, ...prev]);
+            }
 
-        setClaims(prevClaims => prevClaims.map(c => c.id === updatedClaim.id ? updatedClaim : c));
-        setSelectedClaim(updatedClaim); // Update the selected claim view as well
-        notificationService.notify(`Claim ${updatedClaim.id} đã được cập nhật.`, { type: 'success', duration: 3000 });
+            setClaims(prevClaims => prevClaims.map(c => c.id === updatedClaim.id ? updatedClaim : c));
+            setSelectedClaim(updatedClaim);
+            notificationService.notify(`Claim ${updatedClaim.id} đã được cập nhật.`, { type: 'success', duration: 3000 });
 
-        if (oldStatus && oldStatus !== updatedClaim.status) {
-            emailService.sendStatusUpdateNotification(updatedClaim, oldStatus);
+            if (oldStatus && oldStatus !== updatedClaim.status) {
+                emailService.sendStatusUpdateNotification(updatedClaim, oldStatus);
+            }
+        } catch (error) {
+            console.error('Error updating claim:', error);
+            notificationService.notify('Lỗi khi cập nhật claim', { type: 'error', duration: 3000 });
         }
     };
     
-    const handleAddComment = (claimId: string, text: string) => {
+    const handleAddComment = async (claimId: string, text: string) => {
         const newComment: Comment = {
             id: `comment-${Date.now()}`,
             user: currentUser,
             timestamp: new Date().toISOString(),
             text,
         };
-        const updatedClaims = claims.map(claim => {
-            if (claim.id === claimId) {
-                return { ...claim, comments: [...claim.comments, newComment] };
-            }
-            return claim;
-        });
-        setClaims(updatedClaims);
-
-        const updatedSelectedClaim = updatedClaims.find(c => c.id === claimId);
-        if (updatedSelectedClaim) {
-            setSelectedClaim(updatedSelectedClaim);
-        }
         
-        // Add notification for new comment
-        const newNotif: AppNotification = {
-            id: `notif-${Date.now()}`,
-            message: `<strong>${currentUser.name}</strong> đã thêm một bình luận vào claim <strong>${claimId}</strong>.`,
-            claimId,
-            userId: currentUser.id,
-            isRead: false,
-            timestamp: new Date().toISOString()
-        };
-        setNotifications(prev => [newNotif, ...prev]);
+        try {
+            await databaseService.createComment(claimId, newComment);
+            
+            const updatedClaims = claims.map(claim => {
+                if (claim.id === claimId) {
+                    return { ...claim, comments: [...claim.comments, newComment] };
+                }
+                return claim;
+            });
+            setClaims(updatedClaims);
+
+            const updatedSelectedClaim = updatedClaims.find(c => c.id === claimId);
+            if (updatedSelectedClaim) {
+                setSelectedClaim(updatedSelectedClaim);
+            }
+            
+            const newNotif: AppNotification = {
+                id: `notif-${Date.now()}`,
+                message: `<strong>${currentUser.name}</strong> đã thêm một bình luận vào claim <strong>${claimId}</strong>.`,
+                claimId,
+                userId: currentUser.id,
+                isRead: false,
+                timestamp: new Date().toISOString()
+            };
+            await databaseService.createNotification(newNotif);
+            setNotifications(prev => [newNotif, ...prev]);
+        } catch (error) {
+            console.error('Error adding comment:', error);
+            notificationService.notify('Lỗi khi thêm bình luận', { type: 'error', duration: 3000 });
+        }
     };
 
-    const handleCreateClaim = (newClaimData: Omit<Claim, 'id' | 'createdAt' | 'status' | 'creator' | 'comments'>) => {
+    const handleCreateClaim = async (newClaimData: Omit<Claim, 'id' | 'createdAt' | 'status' | 'creator' | 'comments'>) => {
         const newClaim: Claim = {
             ...newClaimData,
             id: `CLM-${String(claims.length + 1).padStart(3, '0')}`,
@@ -118,35 +177,59 @@ function App() {
             creator: currentUser,
             comments: [],
         };
-        setClaims(prev => [newClaim, ...prev]);
-        setIsCreateModalOpen(false);
-        notificationService.notify(`Claim mới ${newClaim.id} đã được tạo.`, { type: 'success', duration: 3000 });
-        emailService.sendNewClaimNotification(newClaim);
+        
+        try {
+            await databaseService.createClaim(newClaim);
+            setClaims(prev => [newClaim, ...prev]);
+            setIsCreateModalOpen(false);
+            notificationService.notify(`Claim mới ${newClaim.id} đã được tạo.`, { type: 'success', duration: 3000 });
+            emailService.sendNewClaimNotification(newClaim);
 
-        // Add notification for new claim
-         const newNotif: AppNotification = {
-            id: `notif-${Date.now()}`,
-            message: `Claim mới <strong>${newClaim.id}</strong> đã được tạo bởi <strong>${currentUser.name}</strong>.`,
-            claimId: newClaim.id,
-            userId: currentUser.id,
-            isRead: false,
-            timestamp: new Date().toISOString()
-        };
-        setNotifications(prev => [newNotif, ...prev]);
+            const newNotif: AppNotification = {
+                id: `notif-${Date.now()}`,
+                message: `Claim mới <strong>${newClaim.id}</strong> đã được tạo bởi <strong>${currentUser.name}</strong>.`,
+                claimId: newClaim.id,
+                userId: currentUser.id,
+                isRead: false,
+                timestamp: new Date().toISOString()
+            };
+            await databaseService.createNotification(newNotif);
+            setNotifications(prev => [newNotif, ...prev]);
+        } catch (error) {
+            console.error('Error creating claim:', error);
+            notificationService.notify('Lỗi khi tạo claim', { type: 'error', duration: 3000 });
+        }
     };
     
-    const handleMarkAllNotificationsAsRead = () => {
-        setNotifications(prev => prev.map(n => ({...n, isRead: true})));
+    const handleMarkAllNotificationsAsRead = async () => {
+        try {
+            await databaseService.markAllNotificationsAsRead();
+            setNotifications(prev => prev.map(n => ({...n, isRead: true})));
+        } catch (error) {
+            console.error('Error marking notifications as read:', error);
+        }
     };
 
-    const handleAddUser = (user: User) => {
-        setUsers(prev => [...prev, user]);
-        notificationService.notify(`Người dùng ${user.name} đã được thêm.`, { type: 'success', duration: 3000 });
+    const handleAddUser = async (user: User) => {
+        try {
+            await databaseService.createUser(user);
+            setUsers(prev => [...prev, user]);
+            notificationService.notify(`Người dùng ${user.name} đã được thêm.`, { type: 'success', duration: 3000 });
+        } catch (error) {
+            console.error('Error adding user:', error);
+            notificationService.notify('Lỗi khi thêm người dùng', { type: 'error', duration: 3000 });
+        }
     };
 
-    const handleUpdateUser = (user: User) => {
-        setUsers(prev => prev.map(u => u.id === user.id ? user : u));
-        notificationService.notify(`Thông tin người dùng ${user.name} đã được cập nhật.`, { type: 'success', duration: 3000 });
+    const handleUpdateUser = async (user: User) => {
+        try {
+            await databaseService.updateUser(user);
+            setUsers(prev => prev.map(u => u.id === user.id ? user : u));
+            notificationService.notify(`Thông tin người dùng ${user.name} đã được cập nhật.`, { type: 'success', duration: 3000 });
+        } catch (error) {
+            console.error('Error updating user:', error);
+            notificationService.notify('Lỗi khi cập nhật người dùng', { type: 'error', duration: 3000 });
+        }
     };
 
     const renderContent = () => {
@@ -166,6 +249,10 @@ function App() {
                 return <Dashboard claims={claims} onClaimSelect={handleClaimSelect} />;
         }
     };
+
+    if (loading) {
+        return <LoadingSpinner />;
+    }
 
     return (
         <div className="app">
