@@ -29,7 +29,7 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, isCreating
       ? {
         ...formData,
         id: `user-${Date.now()}`,
-        avatarUrl: `https://i.pravatar.cc/150?u=user-${Date.now()}`
+        avatarUrl: `https://api.dicebear.com/8.x/micah/svg?seed=${encodeURIComponent(formData.name)}`
       }
       : { ...user!, ...formData };
     

@@ -1,13 +1,13 @@
 import { User, Claim, ClaimSeverity, ClaimStatus, FishboneAnalysisData, TraceabilityAnalysis, RootCauseAnalysis, UserRole, FilterStatus, AppNotification } from '../types';
 
 export const users: User[] = [
-    { id: 'user-1', name: 'Nguyễn Văn An', avatarUrl: 'https://i.pravatar.cc/150?u=user-1', role: UserRole.QcManager, email: 'an.nguyen@ykk.com', department: 'QC' },
-    { id: 'user-2', name: 'Trần Thị Bích', avatarUrl: 'https://i.pravatar.cc/150?u=user-2', role: UserRole.QcStaff, email: 'bich.tran@ykk.com', department: 'QC' },
-    { id: 'user-3', name: 'Lê Minh Cường', avatarUrl: 'https://i.pravatar.cc/150?u=user-3', role: UserRole.DepartmentStaff, email: 'cuong.le@ykk.com', department: 'Weaving' },
-    { id: 'user-4', name: 'Phạm Thị Dung', avatarUrl: 'https://i.pravatar.cc/150?u=user-4', role: UserRole.DepartmentStaff, email: 'dung.pham@ykk.com', department: 'Dyeing' },
-    { id: 'user-5', name: 'Hoàng Văn E', avatarUrl: 'https://i.pravatar.cc/150?u=user-5', role: UserRole.Admin, email: 'e.hoang@ykk.com', department: 'Admin' },
-    { id: 'user-6', name: 'Vũ Thị F', avatarUrl: 'https://i.pravatar.cc/150?u=user-6', role: UserRole.Viewer, email: 'f.vu@ykk.com', department: 'N/A' },
-    { id: 'user-7', name: 'Đặng Văn G', avatarUrl: 'https://i.pravatar.cc/150?u=user-7', role: UserRole.DepartmentStaff, email: 'g.dang@ykk.com', department: 'Shipping' },
+    { id: 'user-1', name: 'Nguyễn Văn An', avatarUrl: 'https://api.dicebear.com/8.x/micah/svg?seed=An', role: UserRole.QcManager, email: 'an.nguyen@ykk.com', department: 'QC' },
+    { id: 'user-2', name: 'Trần Thị Bích', avatarUrl: 'https://api.dicebear.com/8.x/micah/svg?seed=Bich', role: UserRole.QcStaff, email: 'bich.tran@ykk.com', department: 'QC' },
+    { id: 'user-3', name: 'Lê Minh Cường', avatarUrl: 'https://api.dicebear.com/8.x/micah/svg?seed=Cuong', role: UserRole.DepartmentStaff, email: 'cuong.le@ykk.com', department: 'Weaving' },
+    { id: 'user-4', name: 'Phạm Thị Dung', avatarUrl: 'https://api.dicebear.com/8.x/micah/svg?seed=Dung', role: UserRole.DepartmentStaff, email: 'dung.pham@ykk.com', department: 'Dyeing' },
+    { id: 'user-5', name: 'Hoàng Văn E', avatarUrl: 'https://api.dicebear.com/8.x/micah/svg?seed=E', role: UserRole.Admin, email: 'e.hoang@ykk.com', department: 'Admin' },
+    { id: 'user-6', name: 'Vũ Thị F', avatarUrl: 'https://api.dicebear.com/8.x/micah/svg?seed=F', role: UserRole.Viewer, email: 'f.vu@ykk.com', department: 'N/A' },
+    { id: 'user-7', name: 'Đặng Văn G', avatarUrl: 'https://api.dicebear.com/8.x/micah/svg?seed=G', role: UserRole.DepartmentStaff, email: 'g.dang@ykk.com', department: 'Shipping' },
 ];
 
 export const currentUser: User = users[4]; // Logged in as Admin by default now
@@ -41,6 +41,20 @@ const defaultRootCauseAnalysis: RootCauseAnalysis = {
     attachments: [],
 };
 
+// Helper functions for dates
+const daysAgo = (days: number): Date => {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date;
+};
+
+const daysFromNow = (days: number): Date => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date;
+};
+
+
 export const claims: Claim[] = [
     {
         id: 'CLM-001',
@@ -57,15 +71,15 @@ export const claims: Claim[] = [
         creator: users[0],
         status: ClaimStatus.InProgress,
         severity: ClaimSeverity.High,
-        createdAt: '2023-10-26T09:00:00Z',
-        deadline: '2023-11-05T17:00:00Z',
+        createdAt: daysAgo(3).toISOString(),
+        deadline: daysFromNow(5).toISOString(),
         attachments: [
             { name: 'product_image_1.jpg', url: 'https://picsum.photos/seed/clm001-1/400/300', type: 'image' },
             { name: 'product_image_2.jpg', url: 'https://picsum.photos/seed/clm001-2/400/300', type: 'image' }
         ],
         comments: [
-            { id: 'comment-1', user: users[0], timestamp: '2023-10-26T09:05:00Z', text: 'Dung, phòng Nhuộm xử lý case này nhé. Cần gấp!' },
-            { id: 'comment-2', user: users[3], timestamp: '2023-10-26T09:15:00Z', text: 'Vâng sếp, em đã nhận được thông tin và sẽ tiến hành kiểm tra ngay.' },
+            { id: 'comment-1', user: users[0], timestamp: daysAgo(3).toISOString(), text: 'Dung, phòng Nhuộm xử lý case này nhé. Cần gấp!' },
+            { id: 'comment-2', user: users[3], timestamp: daysAgo(2).toISOString(), text: 'Vâng sếp, em đã nhận được thông tin và sẽ tiến hành kiểm tra ngay.' },
         ],
         containmentActions: 'Đã cô lập lô hàng nghi ngờ tại kho. Liên hệ khách hàng để thu hồi sản phẩm lỗi.',
         rootCauseAnalysis: defaultRootCauseAnalysis,
@@ -111,8 +125,8 @@ export const claims: Claim[] = [
         creator: users[0],
         status: ClaimStatus.New,
         severity: ClaimSeverity.Critical,
-        createdAt: '2023-10-28T14:30:00Z',
-        deadline: '2023-11-02T17:00:00Z',
+        createdAt: daysAgo(1).toISOString(),
+        deadline: daysFromNow(2).toISOString(),
         attachments: [
             { name: 'broken_zipper.png', url: 'https://picsum.photos/seed/clm002-1/400/300', type: 'image' }
         ],
@@ -142,8 +156,8 @@ export const claims: Claim[] = [
         creator: users[0],
         status: ClaimStatus.Completed,
         severity: ClaimSeverity.Medium,
-        createdAt: '2023-09-15T11:00:00Z',
-        deadline: '2023-09-20T17:00:00Z',
+        createdAt: daysAgo(40).toISOString(),
+        deadline: daysAgo(35).toISOString(),
         attachments: [
             { name: 'tech_spec.pdf', url: '#', type: 'document' }
         ],
@@ -177,8 +191,8 @@ export const claims: Claim[] = [
         creator: users[0],
         status: ClaimStatus.PendingCustomer,
         severity: ClaimSeverity.Medium,
-        createdAt: '2023-10-20T10:00:00Z',
-        deadline: '2023-10-30T17:00:00Z',
+        createdAt: daysAgo(10).toISOString(),
+        deadline: daysAgo(2).toISOString(),
         attachments: [
             { name: 'scratched_surface.jpg', url: 'https://picsum.photos/seed/clm004-1/400/300', type: 'image' },
             { name: 'shipping_box.jpg', url: 'https://picsum.photos/seed/clm004-2/400/300', type: 'image' }
@@ -209,8 +223,8 @@ export const claims: Claim[] = [
         creator: users[0],
         status: ClaimStatus.InProgress,
         severity: ClaimSeverity.Low,
-        createdAt: '2023-10-29T08:00:00Z',
-        deadline: '2023-11-10T17:00:00Z',
+        createdAt: daysAgo(1).toISOString(),
+        deadline: daysFromNow(10).toISOString(),
         attachments: [
             { name: 'frayed_zipper_tape.jpg', url: 'https://picsum.photos/seed/clm005-1/400/300', type: 'image' },
             { name: 'weaving_report.pdf', url: '#', type: 'document' },
@@ -233,7 +247,7 @@ export const mockNotifications: AppNotification[] = [
     {
         id: 'notif-1',
         message: `<strong>Trần Thị Bích</strong> đã thêm một bình luận vào claim <strong>CLM-001</strong>.`,
-        timestamp: '2023-10-29T10:00:00Z',
+        timestamp: daysAgo(1).toISOString(),
         isRead: false,
         claimId: 'CLM-001',
         userId: 'user-2'
@@ -241,7 +255,7 @@ export const mockNotifications: AppNotification[] = [
     {
         id: 'notif-2',
         message: `Claim <strong>CLM-002</strong> đã được gán cho <strong>Lê Minh Cường</strong>.`,
-        timestamp: '2023-10-28T14:35:00Z',
+        timestamp: daysAgo(1).toISOString(),
         isRead: false,
         claimId: 'CLM-002',
         userId: 'user-1'
@@ -249,7 +263,7 @@ export const mockNotifications: AppNotification[] = [
     {
         id: 'notif-3',
         message: `Trạng thái của claim <strong>CLM-003</strong> đã được cập nhật thành "<strong>Hoàn tất</strong>".`,
-        timestamp: '2023-09-20T16:00:00Z',
+        timestamp: daysAgo(35).toISOString(),
         isRead: true,
         claimId: 'CLM-003',
         userId: 'user-5'
@@ -257,7 +271,7 @@ export const mockNotifications: AppNotification[] = [
     {
         id: 'notif-4',
         message: `<strong>Phạm Thị Dung</strong> đã cập nhật <strong>Hành động ngăn chặn tạm thời</strong> cho claim <strong>CLM-004</strong>.`,
-        timestamp: '2023-10-21T11:00:00Z',
+        timestamp: daysAgo(9).toISOString(),
         isRead: true,
         claimId: 'CLM-004',
         userId: 'user-4'
