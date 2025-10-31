@@ -1,0 +1,5 @@
+{
+  "name": "YKK Customer Claim Management System",
+  "description": "A web application to digitize and automate the customer claim processing workflow, connecting QC, Weaving, Warehouse, and Planning departments seamlessly to reduce response times and improve customer satisfaction.",
+  "requestFramePermissions": []
+}
