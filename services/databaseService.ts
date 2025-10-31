@@ -59,7 +59,7 @@ export const databaseService = {
       severity: claim.severity,
       createdAt: claim.created_at,
       deadline: claim.deadline,
-      attachments: [],
+      attachments: claim.attachments || [],
       comments: comments.filter(c => c.claimId === claim.id),
       containmentActions: claim.containment_actions || '',
       rootCauseAnalysis: claim.root_cause_analysis || {},
@@ -109,7 +109,8 @@ export const databaseService = {
       effectiveness_validation: claim.effectivenessValidation,
       closure_summary: claim.closureSummary,
       customer_confirmation: claim.customerConfirmation,
-      completed_prs: claim.completedPrs
+      completed_prs: claim.completedPrs,
+      attachments: claim.attachments
     }).eq('id', claim.id).select().single();
     if (error) throw error;
     return data;

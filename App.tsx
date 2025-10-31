@@ -51,6 +51,7 @@ function App() {
                 databaseService.getClaims(),
                 databaseService.getNotifications()
             ]);
+            console.log('Loaded claims from DB:', dbClaims.map(c => ({ id: c.id, attachments: c.attachments })));
             
             if (dbUsers.length === 0) {
                 await Promise.all(mockUsers.map(u => databaseService.createUser(u)));
@@ -118,7 +119,9 @@ function App() {
         const oldStatus = oldClaim?.status;
         
         try {
+            console.log('Saving claim with attachments:', updatedClaim.attachments);
             await databaseService.updateClaim(updatedClaim);
+            console.log('Claim saved successfully');
             
             const newNotifications = activityService.generateNotifications(oldClaim, updatedClaim, currentUser);
             if (newNotifications.length > 0) {
@@ -135,7 +138,7 @@ function App() {
                 emailService.sendStatusUpdateNotification(updatedClaim, oldStatus);
             }
         } catch (error) {
-            console.error('Error updating claim:', error);
+            console.error('Error updating claim:', error, error);
             showToast('Lỗi khi lưu claim', 'error');
             notificationService.notify('Lỗi khi cập nhật claim', { type: 'error', duration: 3000 });
         }
