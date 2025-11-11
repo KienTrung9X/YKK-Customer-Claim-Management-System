@@ -31,6 +31,17 @@ export enum ClaimStatus {
   Completed = 'Hoàn tất',
 }
 
+export enum ClaimType {
+  Customer = 'Khách hàng',
+  Internal = 'Nội bộ',
+}
+
+export enum ClaimConfirmation {
+  Pending = 'Chờ xác nhận',
+  OK = 'OK',
+  NG = 'NG',
+}
+
 export interface FishboneCategory {
   id: string;
   name: string;
@@ -102,7 +113,10 @@ export interface AppNotification {
 
 export interface Claim {
   id: string;
-  customerName: string;
+  claimType: ClaimType;
+  confirmation: ClaimConfirmation;
+  customerName?: string; // Optional for internal claims
+  discoveredByDepartment?: string; // For internal claims
   orderId: string;
   productCode: string;
   defectType: string;
@@ -120,6 +134,9 @@ export interface Claim {
   attachments: Attachment[];
   comments: Comment[];
   completedPrs: string;
+  // Error responsibility fields
+  errorCausedBy: string;
+  errorCausedById: string;
   // 8D Report fields
   containmentActions: string;
   rootCauseAnalysis: RootCauseAnalysis;

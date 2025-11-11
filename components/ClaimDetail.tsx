@@ -1,6 +1,7 @@
 // FIX: Create the ClaimDetail component to display 8D report details for a claim.
 import React, { useState } from 'react';
-import { Claim, ClaimStatus, ClaimSeverity, User, FishboneAnalysisData, TraceabilityAnalysis, Attachment } from '../types';
+import { useTranslation } from 'react-i18next';
+import { Claim, ClaimStatus, ClaimSeverity, ClaimConfirmation, User, FishboneAnalysisData, TraceabilityAnalysis, Attachment } from '../types';
 import { IshikawaDiagram } from './IshikawaDiagram';
 import { CommentSection } from './CommentSection';
 import { permissionService } from '../services/permissionService';
@@ -113,7 +114,9 @@ export const ClaimDetail: React.FC<{
   onBack: () => void;
   currentUser: User;
   onAddComment: (claimId: string, text: string) => void;
-}> = ({ claim, onUpdateClaim, onBack, currentUser, onAddComment }) => {
+  showToast?: (message: string, type: 'success' | 'error' | 'info', duration?: number) => void;
+}> = ({ claim, onUpdateClaim, onBack, currentUser, onAddComment, showToast }) => {
+    const { t } = useTranslation();
     const [editableClaim, setEditableClaim] = useState<Claim>(claim);
     const [viewingImage, setViewingImage] = useState<string | null>(null);
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -153,6 +156,36 @@ export const ClaimDetail: React.FC<{
                 rootCauseAnalysis: { ...prev.rootCauseAnalysis, [field]: value }
             }));
         } else {
+            // Hiển thị thông báo khi thay đổi confirmation
+            if (name === 'confirmation' && value !== editableClaim.confirmation) {
+                console.log('Confirmation changed from', editableClaim.confirmation, 'to', value);
+                const message = value === 'OK' 
+                    ? `Claim ${claim.id} đã được xác nhận OK - sẽ không tính vào thống kê`
+                    : value === 'NG' 
+                    ? `Claim ${claim.id} đã được xác nhận NG - sẽ tính vào thống kê`
+                    : `Claim ${claim.id} đang chờ xác nhận`;
+                
+                console.log('Confirmation changed, creating notification');
+                // Tạo notification vào hệ thống thông báo
+                const confirmationMessage = value === 'OK' 
+                    ? `<strong>${currentUser.name}</strong> đã xác nhận claim <strong>${claim.id}</strong> là <strong>OK</strong> - không tính thống kê`
+                    : value === 'NG' 
+                    ? `<strong>${currentUser.name}</strong> đã xác nhận claim <strong>${claim.id}</strong> là <strong>NG</strong> - tính vào thống kê`
+                    : `<strong>${currentUser.name}</strong> đã đặt claim <strong>${claim.id}</strong> về trạng thái chờ xác nhận`;
+                
+                // Tạo notification object
+                const newNotification = {
+                    id: `notif-${Date.now()}`,
+                    message: confirmationMessage,
+                    claimId: claim.id,
+                    userId: currentUser.id,
+                    isRead: false,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Gửi notification (sẽ được xử lý trong handleUpdateClaim)
+                console.log('Created notification:', newNotification);
+            }
             setEditableClaim(prev => ({ ...prev, [name]: value }));
         }
     };
@@ -180,7 +213,7 @@ export const ClaimDetail: React.FC<{
             const oversizedFiles = newFiles.filter(f => f.size > maxSize);
             
             if (oversizedFiles.length > 0) {
-                notificationService.notify(`File quá lớn: ${oversizedFiles.map(f => f.name).join(', ')}. Giới hạn 2MB/file`, { type: 'error', duration: 4000 });
+                notificationService.notify(`${t('claims.fileTooLarge')}: ${oversizedFiles.map(f => f.name).join(', ')}. ${t('claims.fileSizeLimit')}`, { type: 'error', duration: 4000 });
                 e.target.value = '';
                 return;
             }
@@ -204,10 +237,10 @@ export const ClaimDetail: React.FC<{
                     attachments: [...prev.attachments, ...newAttachments]
                 }));
                 
-                notificationService.notify('Upload file thành công', { type: 'success', duration: 2000 });
+                notificationService.notify(t('claims.uploadSuccess'), { type: 'success', duration: 2000 });
             } catch (error) {
                 console.error('Error uploading files:', error);
-                notificationService.notify('Lỗi khi upload file', { type: 'error', duration: 3000 });
+                notificationService.notify(t('claims.uploadError'), { type: 'error', duration: 3000 });
             } finally {
                 setIsUploadingFiles(false);
                 e.target.value = '';
@@ -231,7 +264,7 @@ export const ClaimDetail: React.FC<{
             const oversizedFiles = newFiles.filter(f => f.size > maxSize);
             
             if (oversizedFiles.length > 0) {
-                notificationService.notify(`File quá lớn: ${oversizedFiles.map(f => f.name).join(', ')}. Giới hạn 2MB/file`, { type: 'error', duration: 4000 });
+                notificationService.notify(`${t('claims.fileTooLarge')}: ${oversizedFiles.map(f => f.name).join(', ')}. ${t('claims.fileSizeLimit')}`, { type: 'error', duration: 4000 });
                 e.target.value = '';
                 return;
             }
@@ -258,10 +291,10 @@ export const ClaimDetail: React.FC<{
                     }
                 }));
                 
-                notificationService.notify('Upload file thành công', { type: 'success', duration: 2000 });
+                notificationService.notify(t('claims.uploadSuccess'), { type: 'success', duration: 2000 });
             } catch (error) {
                 console.error('Error uploading RCA files:', error);
-                notificationService.notify('Lỗi khi upload file', { type: 'error', duration: 3000 });
+                notificationService.notify(t('claims.uploadError'), { type: 'error', duration: 3000 });
             } finally {
                 setIsUploadingRcaFiles(false);
                 e.target.value = '';
@@ -358,7 +391,7 @@ export const ClaimDetail: React.FC<{
                                     type="button" 
                                     onClick={() => onRemove(index)} 
                                     className="absolute -top-1.5 -right-1.5 bg-white dark:bg-gray-700 text-red-500 rounded-full p-0 leading-none shadow-md opacity-0 group-hover:opacity-100 transition-all hover:scale-110 focus:outline-none"
-                                    title="Xóa tệp"
+                                    title={t('claims.deleteFile')}
                                 >
                                     <XCircleIcon className="w-5 h-5" />
                                 </button>
@@ -367,7 +400,7 @@ export const ClaimDetail: React.FC<{
                     ))}
                 </div>
             ) : (
-                <p className="text-sm text-gray-400 italic">Không có file đính kèm.</p>
+                <p className="text-sm text-gray-400 italic">{t('claims.noAttachments')}</p>
             )}
         </div>
     );
@@ -375,37 +408,41 @@ export const ClaimDetail: React.FC<{
     return (
         <div className="space-y-6">
             <div>
-                <button onClick={onBack} className="text-ykk-blue hover:underline mb-2">&larr; Quay lại danh sách</button>
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">Chi tiết Claim: {claim.id}</h2>
+                <button onClick={onBack} className="text-ykk-blue hover:underline mb-2">&larr; {t('actions.back', 'Quay lại danh sách')}</button>
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">{t('claimDetail.title', 'Chi tiết Claim')}: {claim.id}</h2>
             </div>
             <div className="sticky top-0 z-10 flex justify-end items-center gap-2 py-2">
                 <button onClick={handleGenerateReport} disabled={isGeneratingReport} className="px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-600 border border-transparent rounded-md hover:from-purple-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isGeneratingReport ? 'Đang tạo...' : 'AI Báo cáo'}
+                    {isGeneratingReport ? t('common.generating', 'Đang tạo...') : t('claimDetail.aiReport', 'AI Báo cáo')}
                 </button>
                 {canEditAnything && (
                     <>
                         <button onClick={() => setEditableClaim(claim)} className="px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white dark:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md hover:bg-gray-50 dark:hover:bg-gray-500">
-                            Hủy
+                            {t('actions.cancel')}
                         </button>
                         <button onClick={handleSave} className="px-2.5 py-1.5 text-xs font-medium text-white bg-ykk-blue border border-transparent rounded-md hover:bg-ykk-blue/90">
-                            Lưu
+                            {t('actions.save')}
                         </button>
                     </>
                 )}
             </div>
 
             {/* General Info Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <InfoItem label="Khách hàng" value={claim.customerName} />
-                <InfoItem label="Mã đơn hàng" value={claim.orderId} />
-                <InfoItem label="Mã sản phẩm" value={claim.productCode} />
-                <InfoItem label="Người xử lý" value={
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                {claim.claimType === 'Khách hàng' ? (
+                    <InfoItem label={t('claims.customer')} value={claim.customerName} />
+                ) : (
+                    <InfoItem label={t('claims.discoveredBy')} value={claim.discoveredByDepartment} />
+                )}
+                <InfoItem label={t('claims.orderId')} value={claim.orderId} />
+                <InfoItem label={t('claims.productCode')} value={claim.productCode} />
+                <InfoItem label={t('claims.assignee')} value={
                     <div className="flex items-center">
                         <img src={claim.assignee.avatarUrl} alt={claim.assignee.name} className="w-6 h-6 rounded-full mr-2" />
                         <span>{claim.assignee.name}</span>
                     </div>
                 } />
-                <InfoItem label="Trạng thái" value={
+                <InfoItem label={t('claims.status')} value={
                     <select
                         name="status"
                         value={editableClaim.status}
@@ -416,41 +453,106 @@ export const ClaimDetail: React.FC<{
                         {Object.values(ClaimStatus).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 } />
-                 <InfoItem label="Hạn xử lý" value={<span className={isOverdue ? 'text-red-500' : ''}>{new Date(claim.deadline).toLocaleDateString()} ({timeLeft})</span>} />
+                <InfoItem label={t('claims.confirmation')} value={
+                    <select
+                        name="confirmation"
+                        value={editableClaim.confirmation}
+                        onChange={handleChange}
+                        disabled={!canEditHeader}
+                        className={`px-2 py-1 rounded-full text-sm font-semibold border-0 focus:ring-2 focus:ring-ykk-blue ${
+                            editableClaim.confirmation === 'OK' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' :
+                            editableClaim.confirmation === 'NG' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' :
+                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                        }`}
+                    >
+                        {Object.values(ClaimConfirmation).map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                } />
+                 <InfoItem label={t('claims.processingDeadline')} value={<span className={isOverdue ? 'text-red-500' : ''}>{new Date(claim.deadline).toLocaleDateString()} ({timeLeft})</span>} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
                      {/* D1 & D2 in one card for brevity */}
-                     <ReportSection title="Xác định & Mô tả vấn đề" dNumber="D1/D2">
+                     <ReportSection title={t('claims.d1d2Title')} dNumber="D1/D2">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                             <InfoItem label="Mã đơn hàng" value={
+                             <InfoItem label={t('claims.claimType')} value={
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    claim.claimType === 'Khách hàng' 
+                                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+                                        : 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                                }`}>{claim.claimType === 'Khách hàng' ? t('claims.customerClaim') : t('claims.internalClaim')}</span>
+                             } />
+                             {claim.claimType === 'Khách hàng' ? (
+                                 <InfoItem label={t('claims.customer')} value={claim.customerName} />
+                             ) : (
+                                 <InfoItem label={t('claims.discoveredBy')} value={
+                                    <span className="px-2 py-1 rounded-md text-sm font-semibold bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300">
+                                        {claim.discoveredByDepartment}
+                                    </span>
+                                 } />
+                             )}
+                             <InfoItem label={t('claims.orderId')} value={
                                 <div className="flex items-center">
                                     <span className="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">{claim.orderId}</span>
                                     <CopyButton text={claim.orderId} />
                                 </div>
                              } />
-                             <InfoItem label="Loại lỗi" value={claim.defectType} />
-                             <InfoItem label="Mức độ" value={<span className={`px-2 py-1 rounded-full text-xs font-semibold ${getSeverityStyles(claim.severity)}`}>{claim.severity}</span>} />
+                             <InfoItem label={t('claims.defectType')} value={claim.defectType} />
+                             <InfoItem label={t('claims.severity')} value={<span className={`px-2 py-1 rounded-full text-xs font-semibold ${getSeverityStyles(claim.severity)}`}>{t(`severity.${claim.severity.toLowerCase()}`)}</span>} />
                              <InfoItem 
-                                label="Bộ phận chịu trách nhiệm" 
+                                label={t('claims.responsibleDept')} 
                                 value={
                                     <span className="px-2 py-1 rounded-md text-sm font-semibold bg-ykk-blue/10 text-ykk-blue dark:bg-ykk-blue/20 dark:text-ykk-blue-300">
                                         {claim.responsibleDepartment}
                                     </span>
                                 } 
                             />
-                             <InfoItem label="Số lượng lỗi" value={`${claim.quantity} / ${claim.totalQuantity} (${claim.totalQuantity > 0 ? ((claim.quantity/claim.totalQuantity)*100).toFixed(2) : 0}%)`} />
-                             <InfoItem label="Nơi phát hiện" value={claim.discoveryLocation} />
+                             <InfoItem 
+                                label={t('claims.errorCausedByName')} 
+                                value={
+                                    canEditHeader ? (
+                                        <input
+                                            type="text"
+                                            name="errorCausedBy"
+                                            value={editableClaim.errorCausedBy || ''}
+                                            onChange={handleChange}
+                                            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"
+                                            placeholder={t('claims.errorCausedByNamePlaceholder')}
+                                        />
+                                    ) : (
+                                        <span>{claim.errorCausedBy || t('claims.notDetermined')}</span>
+                                    )
+                                } 
+                            />
+                             <InfoItem 
+                                label={t('claims.errorCausedByIdLabel')} 
+                                value={
+                                    canEditHeader ? (
+                                        <input
+                                            type="text"
+                                            name="errorCausedById"
+                                            value={editableClaim.errorCausedById || ''}
+                                            onChange={handleChange}
+                                            className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"
+                                            placeholder={t('claims.errorCausedByIdPlaceholderLabel')}
+                                        />
+                                    ) : (
+                                        <span>{claim.errorCausedById || t('claims.notDetermined')}</span>
+                                    )
+                                } 
+                            />
+                             <InfoItem label={t('claims.defectQuantityLabel')} value={`${claim.quantity} / ${claim.totalQuantity} (${claim.totalQuantity > 0 ? ((claim.quantity/claim.totalQuantity)*100).toFixed(2) : 0}%)`} />
+                             <InfoItem label={t('claims.discoveryLocationLabel')} value={claim.discoveryLocation} />
                              <div className="md:col-span-3">
-                                <InfoItem label="PR hoàn thành" value={<PRList prs={claim.completedPrs} />} />
+                                <InfoItem label={t('claims.completedPRs')} value={<PRList prs={claim.completedPrs} />} />
                              </div>
                              <div className="md:col-span-3">
-                                <InfoItem label="Mô tả chi tiết" value={<p className="whitespace-pre-wrap">{claim.description}</p>} />
+                                <InfoItem label={t('claims.detailedDesc')} value={<p className="whitespace-pre-wrap">{claim.description}</p>} />
                              </div>
                              <div className="md:col-span-3">
                                 <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tài liệu đính kèm chung</p>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('claims.generalAttachments')}</p>
                                     {canEditAnything && (
                                         <div>
                                             <label htmlFor="file-upload-detail" className={`cursor-pointer text-sm font-medium text-ykk-blue hover:underline ${isUploadingFiles ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -460,7 +562,7 @@ export const ClaimDetail: React.FC<{
                                                     ) : (
                                                         <PaperclipIcon className="w-4 h-4 mr-1" />
                                                     )}
-                                                    <span>{isUploadingFiles ? 'Đang upload...' : 'Thêm tệp'}</span>
+                                                    <span>{isUploadingFiles ? t('claims.uploading') : t('claims.addFile')}</span>
                                                 </div>
                                             </label>
                                             <input key={editableClaim.attachments.length} id="file-upload-detail" type="file" className="sr-only" multiple onChange={handleFileAdd} disabled={isUploadingFiles} />
@@ -473,17 +575,17 @@ export const ClaimDetail: React.FC<{
                     </ReportSection>
 
                     <ReportSection 
-                        title="Hành động ngăn chặn tạm thời" 
+                        title={t('claims.d3Title')} 
                         dNumber="D3"
                         isCollapsible={true}
                         isExpanded={!!expandedSections['D3']}
                         onToggle={() => toggleSection('D3')}
                     >
-                         <textarea name="containmentActions" value={editableClaim.containmentActions} onChange={handleChange} readOnly={!canEditContainment} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Mô tả các hành động đã thực hiện để cô lập vấn đề..."></textarea>
+                         <textarea name="containmentActions" value={editableClaim.containmentActions} onChange={handleChange} readOnly={!canEditContainment} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder={t('claims.containmentPlaceholder')}></textarea>
                     </ReportSection>
 
                     <ReportSection 
-                        title="Truy xuất nguồn gốc"
+                        title={t('claims.traceabilityTitle')}
                         isCollapsible={true}
                         isExpanded={!!expandedSections['traceability']}
                         onToggle={() => toggleSection('traceability')}
@@ -497,7 +599,7 @@ export const ClaimDetail: React.FC<{
                     </ReportSection>
 
                     <ReportSection 
-                        title="Phân tích Nguyên nhân gốc rễ (RCA)" 
+                        title={t('claims.d4Title')} 
                         dNumber="D4"
                         isCollapsible={true}
                         isExpanded={!!expandedSections['D4']}
@@ -505,27 +607,27 @@ export const ClaimDetail: React.FC<{
                     >
                         <div className="space-y-4">
                             <div>
-                               <label htmlFor="analysisMethod" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phương pháp phân tích</label>
+                               <label htmlFor="analysisMethod" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('claims.analysisMethod')}</label>
                                <select id="analysisMethod" name="rootCauseAnalysis.analysisMethod" value={editableClaim.rootCauseAnalysis.analysisMethod} onChange={handleChange} disabled={!canEditInvestigation} className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200">
-                                   <option value="">-- Chọn phương pháp --</option>
-                                   <option value="Fishbone">Sơ đồ xương cá (Fishbone)</option>
-                                   <option value="5 Whys">5 Whys</option>
-                                   <option value="Other">Khác</option>
+                                   <option value="">{t('claims.selectMethod')}</option>
+                                   <option value="Fishbone">{t('claims.fishbone')}</option>
+                                   <option value="5 Whys">{t('claims.fiveWhys')}</option>
+                                   <option value="Other">{t('claims.other')}</option>
                                </select>
                             </div>
                             {editableClaim.rootCauseAnalysis.analysisMethod === 'Fishbone' && (
                                 <IshikawaDiagram data={editableClaim.rootCauseAnalysis.fishboneAnalysis} onUpdate={handleFishboneUpdate} isEditable={canEditInvestigation} />
                             )}
                             {editableClaim.rootCauseAnalysis.analysisMethod === '5 Whys' && (
-                                <textarea name="rootCauseAnalysis.fiveWhysAnalysis" value={editableClaim.rootCauseAnalysis.fiveWhysAnalysis} onChange={handleChange} readOnly={!canEditInvestigation} rows={6} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="1. Why? ..."></textarea>
+                                <textarea name="rootCauseAnalysis.fiveWhysAnalysis" value={editableClaim.rootCauseAnalysis.fiveWhysAnalysis} onChange={handleChange} readOnly={!canEditInvestigation} rows={6} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder={t('claims.fiveWhysPlaceholder')}></textarea>
                             )}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nguyên nhân gốc rễ</label>
-                                <textarea name="rootCauseAnalysis.rootCause" value={editableClaim.rootCauseAnalysis.rootCause} onChange={handleChange} readOnly={!canEditInvestigation} rows={3} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200" placeholder="Mô tả nguyên nhân chính..."></textarea>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('claims.rootCause')}</label>
+                                <textarea name="rootCauseAnalysis.rootCause" value={editableClaim.rootCauseAnalysis.rootCause} onChange={handleChange} readOnly={!canEditInvestigation} rows={3} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200" placeholder={t('claims.rootCausePlaceholder')}></textarea>
                             </div>
                             <div className="pt-4 border-t dark:border-gray-700/50">
                                 <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tài liệu đính kèm RCA</p>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('claims.rcaAttachments')}</p>
                                     {canEditInvestigation && (
                                         <div>
                                             <label htmlFor="rca-file-upload" className={`cursor-pointer text-sm font-medium text-ykk-blue hover:underline ${isUploadingRcaFiles ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -535,7 +637,7 @@ export const ClaimDetail: React.FC<{
                                                     ) : (
                                                         <PaperclipIcon className="w-4 h-4 mr-1" />
                                                     )}
-                                                    <span>{isUploadingRcaFiles ? 'Đang upload...' : 'Thêm tệp'}</span>
+                                                    <span>{isUploadingRcaFiles ? t('claims.uploading') : t('claims.addFile')}</span>
                                                 </div>
                                             </label>
                                             <input key={editableClaim.rootCauseAnalysis.attachments.length} id="rca-file-upload" type="file" className="sr-only" multiple onChange={handleRcaFileAdd} disabled={isUploadingRcaFiles} />
@@ -548,34 +650,34 @@ export const ClaimDetail: React.FC<{
                     </ReportSection>
 
                      <ReportSection 
-                        title="Hành động khắc phục" 
+                        title={t('claims.d5Title')} 
                         dNumber="D5"
                         isCollapsible={true}
                         isExpanded={!!expandedSections['D5']}
                         onToggle={() => toggleSection('D5')}
                     >
-                         <textarea name="correctiveActions" value={editableClaim.correctiveActions} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Mô tả các hành động khắc phục..."></textarea>
+                         <textarea name="correctiveActions" value={editableClaim.correctiveActions} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder={t('claims.correctivePlaceholder')}></textarea>
                     </ReportSection>
                      <ReportSection 
-                        title="Hành động phòng ngừa" 
+                        title={t('claims.d6Title')} 
                         dNumber="D6"
                         isCollapsible={true}
                         isExpanded={!!expandedSections['D6']}
                         onToggle={() => toggleSection('D6')}
                      >
-                         <textarea name="preventiveActions" value={editableClaim.preventiveActions} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Mô tả các hành động phòng ngừa tái diễn..."></textarea>
+                         <textarea name="preventiveActions" value={editableClaim.preventiveActions} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder={t('claims.preventivePlaceholder')}></textarea>
                     </ReportSection>
                      <ReportSection 
-                        title="Xác nhận hiệu quả" 
+                        title={t('claims.d7Title')} 
                         dNumber="D7"
                         isCollapsible={true}
                         isExpanded={!!expandedSections['D7']}
                         onToggle={() => toggleSection('D7')}
                     >
-                         <textarea name="effectivenessValidation" value={editableClaim.effectivenessValidation} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Mô tả cách xác nhận hiệu quả của các hành động..."></textarea>
+                         <textarea name="effectivenessValidation" value={editableClaim.effectivenessValidation} onChange={handleChange} readOnly={!canEditInvestigation} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder={t('claims.effectivenessPlaceholder')}></textarea>
                     </ReportSection>
                      <ReportSection 
-                        title="Đóng Claim" 
+                        title={t('claims.d8Title')} 
                         dNumber="D8"
                         isCollapsible={true}
                         isExpanded={!!expandedSections['D8']}
@@ -583,12 +685,12 @@ export const ClaimDetail: React.FC<{
                     >
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tóm tắt đóng</label>
-                                <textarea name="closureSummary" value={editableClaim.closureSummary} onChange={handleChange} readOnly={!canEditClosure} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder="Tóm tắt quá trình xử lý..."></textarea>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('claims.closureSummary')}</label>
+                                <textarea name="closureSummary" value={editableClaim.closureSummary} onChange={handleChange} readOnly={!canEditClosure} rows={4} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-ykk-blue focus:border-ykk-blue bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 resize-none" placeholder={t('claims.closurePlaceholder')}></textarea>
                             </div>
                             <div className="flex items-center">
                                 <input type="checkbox" id="customerConfirmation" name="customerConfirmation" checked={editableClaim.customerConfirmation} onChange={(e) => setEditableClaim(prev => ({ ...prev, customerConfirmation: e.target.checked}))} disabled={!canEditClosure} className="h-4 w-4 text-ykk-blue focus:ring-ykk-blue border-gray-300 rounded" />
-                                <label htmlFor="customerConfirmation" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Khách hàng đã xác nhận</label>
+                                <label htmlFor="customerConfirmation" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">{t('claims.customerConfirmation')}</label>
                             </div>
                         </div>
                     </ReportSection>

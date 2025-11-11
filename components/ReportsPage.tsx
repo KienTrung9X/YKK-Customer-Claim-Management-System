@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppNotification, User, Claim } from '../types';
 import { FileTextIcon } from './Icons';
 import { getTimeLeft } from '../utils/time';
@@ -11,6 +12,7 @@ interface ReportsPageProps {
 }
 
 const ReportsPage: React.FC<ReportsPageProps> = ({ notifications, users, claims, onClaimSelect }) => {
+    const { t, i18n } = useTranslation();
     
     const findUser = (userId: string) => users.find(u => u.id === userId);
     const findClaim = (claimId: string) => claims.find(c => c.id === claimId);
@@ -24,8 +26,8 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ notifications, users, claims,
     
     return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Báo cáo & Phân tích</h2>
-        <p className="text-gray-500 dark:text-gray-400">Xem lại toàn bộ lịch sử hoạt động và các thay đổi trong hệ thống.</p>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">{t('reports.title')}</h2>
+        <p className="text-gray-500 dark:text-gray-400">{t('reports.description')}</p>
         
         <div className="mt-6 flow-root">
             <ul role="list" className="-mb-8">
@@ -56,7 +58,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ notifications, users, claims,
                                             />
                                         </div>
                                          <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                                            <time dateTime={notification.timestamp}>{new Date(notification.timestamp).toLocaleString('vi-VN')}</time>
+                                            <time dateTime={notification.timestamp}>
+                                                {new Date(notification.timestamp).toLocaleString(
+                                                    i18n.language === 'vi' ? 'vi-VN' : 
+                                                    i18n.language === 'ja' ? 'ja-JP' : 'en-US'
+                                                )}
+                                            </time>
                                         </div>
                                     </div>
                                 </div>

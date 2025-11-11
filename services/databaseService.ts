@@ -2,6 +2,8 @@ import { supabase } from './supabaseClient';
 import { Claim, User, Comment, AppNotification } from '../types';
 
 export const databaseService = {
+  // Export supabase client for realtime subscriptions
+  supabase,
   // Users
   async getUsers() {
     const { data, error } = await supabase.from('users').select('*');

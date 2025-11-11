@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { User, UserRole } from '../types';
 import { UserPlusIcon, EditIcon, XCircleIcon } from './Icons';
 import { DEPARTMENTS } from '../constants';
@@ -11,6 +12,7 @@ interface UserModalProps {
 }
 
 const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, isCreating }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<Omit<User, 'id' | 'avatarUrl'>>({
     name: user?.name || '',
     email: user?.email || '',
@@ -69,8 +71,8 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, isCreating
             </div>
           </div>
           <div className="flex justify-end items-center p-4 border-t bg-gray-50 dark:bg-gray-800/50 rounded-b-xl">
-            <button onClick={onClose} type="button" className="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none">Hủy</button>
-            <button type="submit" className="ml-3 px-4 py-2 text-sm font-medium text-white bg-ykk-blue border border-transparent rounded-md shadow-sm hover:bg-ykk-blue/90 focus:outline-none">Lưu thay đổi</button>
+            <button onClick={onClose} type="button" className="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none">{t('actions.cancel')}</button>
+            <button type="submit" className="ml-3 px-4 py-2 text-sm font-medium text-white bg-ykk-blue border border-transparent rounded-md shadow-sm hover:bg-ykk-blue/90 focus:outline-none">{t('actions.save')}</button>
           </div>
         </form>
       </div>
@@ -79,6 +81,7 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, isCreating
 };
 
 export const SettingsPage: React.FC<{ users: User[], onAddUser: (user: User) => void, onUpdateUser: (user: User) => void }> = ({ users, onAddUser, onUpdateUser }) => {
+  const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -109,7 +112,7 @@ export const SettingsPage: React.FC<{ users: User[], onAddUser: (user: User) => 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Quản lý người dùng</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('settings.title')}</h2>
         <button onClick={handleOpenCreateModal} className="flex items-center px-4 py-2 bg-ykk-blue text-white rounded-lg shadow-sm hover:bg-ykk-blue/90 transition-colors">
           <UserPlusIcon className="w-5 h-5 mr-2" />
           Thêm người dùng
@@ -123,7 +126,7 @@ export const SettingsPage: React.FC<{ users: User[], onAddUser: (user: User) => 
                 <th scope="col" className="px-6 py-3">Tên</th>
                 <th scope="col" className="px-6 py-3">Email</th>
                 <th scope="col" className="px-6 py-3">Vai trò</th>
-                <th scope="col" className="px-6 py-3">Phòng ban</th>
+                <th scope="col" className="px-6 py-3">{t('claims.department')}</th>
                 <th scope="col" className="px-6 py-3"><span className="sr-only">Edit</span></th>
               </tr>
             </thead>

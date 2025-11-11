@@ -1,5 +1,7 @@
 // FIX: Create the main App component to manage state and render views.
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
+import './i18n';
+import { ThemeProvider } from './context/ThemeContext';
 import { Layout } from './components/Layout';
 import { Claim, ClaimStatus, User, Comment, AppNotification } from './types';
 import { claims as mockClaims, users as mockUsers, currentUser as loggedInUser, mockNotifications } from './data/mockData';
@@ -31,34 +33,78 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info'; duration?: number }>>([]);
 
-    const showToast = (message: string, type: 'success' | 'error' | 'info', duration = 3000) => {
+    const showToast = useCallback((message: string, type: 'success' | 'error' | 'info', duration = 3000) => {
         const id = `toast-${Date.now()}`;
         setToasts(prev => [...prev, { id, message, type, duration }]);
-    };
+    }, []);
 
-    const removeToast = (id: string) => {
+    const removeToast = useCallback((id: string) => {
         setToasts(prev => prev.filter(t => t.id !== id));
-    };
+    }, []);
 
     useEffect(() => {
         loadData();
+        
+        // Thiết lập realtime subscription cho claims và notifications
+        const channel = databaseService.supabase
+            .channel('realtime-changes')
+            .on('postgres_changes', 
+                { event: '*', schema: 'public', table: 'claims' },
+                (payload) => {
+                    console.log('🔄 Claims realtime update:', payload.eventType, payload.new?.id || payload.old?.id);
+                    setTimeout(() => loadData(), 500);
+                }
+            )
+            .on('postgres_changes', 
+                { event: '*', schema: 'public', table: 'notifications' },
+                (payload) => {
+                    console.log('🔔 Notifications realtime update:', payload.eventType);
+                    setTimeout(() => loadData(), 500);
+                }
+            )
+            .on('postgres_changes', 
+                { event: '*', schema: 'public', table: 'users' },
+                (payload) => {
+                    console.log('👤 Users realtime update:', payload.eventType);
+                    setTimeout(() => loadData(), 500);
+                }
+            )
+            .subscribe((status) => {
+                console.log('📡 Realtime subscription status:', status);
+                if (status === 'SUBSCRIBED') {
+                    console.log('✅ Realtime connected successfully');
+                } else if (status === 'CHANNEL_ERROR') {
+                    console.error('❌ Realtime connection error');
+                }
+            });
+            
+        // Cleanup subscription
+        return () => {
+            console.log('🔌 Disconnecting realtime subscription');
+            channel.unsubscribe();
+        };
     }, []);
 
     const loadData = async () => {
         try {
+            console.log('🔄 Loading data from database...');
             const [dbUsers, dbClaims, dbNotifications] = await Promise.all([
                 databaseService.getUsers(),
                 databaseService.getClaims(),
                 databaseService.getNotifications()
             ]);
-            console.log('Loaded claims from DB:', dbClaims.map(c => ({ id: c.id, attachments: c.attachments })));
+            console.log('📊 Data loaded:', {
+                users: dbUsers.length,
+                claims: dbClaims.length, 
+                notifications: dbNotifications.length
+            });
             
-            setUsers(dbUsers.length > 0 ? dbUsers : mockUsers);
-            setClaims(dbClaims);
-            setNotifications(dbNotifications);
+            setUsers(dbUsers.length > 0 ? dbUsers : []);
+            setClaims(dbClaims.length > 0 ? dbClaims : []);
+            setNotifications(dbNotifications.length > 0 ? dbNotifications : []);
         } catch (error) {
-            console.error('Error loading data:', error);
-            setUsers(mockUsers);
+            console.error('❌ Error loading data:', error);
+            setUsers([]);
             setClaims([]);
             setNotifications([]);
         } finally {
@@ -66,7 +112,7 @@ function App() {
         }
     };
 
-    const handleNavigate = (view: string) => {
+    const handleNavigate = useCallback((view: string) => {
         if (view === 'reports' && !permissionService.canViewReports(currentUser)) {
             notificationService.notify("Bạn không có quyền truy cập trang báo cáo.", { type: 'error' });
             return;
@@ -76,13 +122,13 @@ function App() {
             return;
         }
         setCurrentView(view);
-        setSelectedClaim(null); // Reset selected claim on navigation
-    };
+        setSelectedClaim(null);
+    }, [currentUser]);
 
-    const handleClaimSelect = (claim: Claim) => {
+    const handleClaimSelect = useCallback((claim: Claim) => {
         setSelectedClaim(claim);
         setCurrentView('claimDetail');
-    };
+    }, []);
 
     const handleNavigateFromNotif = (claim: Claim) => {
         // Mark notifications related to this claim as read
@@ -100,6 +146,7 @@ function App() {
         if (!oldClaim) return;
         
         const oldStatus = oldClaim?.status;
+        const oldConfirmation = oldClaim?.confirmation;
         
         try {
             console.log('Saving claim with attachments:', updatedClaim.attachments);
@@ -107,6 +154,27 @@ function App() {
             console.log('Claim saved successfully');
             
             const newNotifications = activityService.generateNotifications(oldClaim, updatedClaim, currentUser);
+            
+            // Thêm notification cho thay đổi confirmation
+            if (oldConfirmation !== updatedClaim.confirmation) {
+                const confirmationMessage = updatedClaim.confirmation === 'OK' 
+                    ? `<strong>${currentUser.name}</strong> đã xác nhận claim <strong>${updatedClaim.id}</strong> là <strong>OK</strong> - không tính thống kê`
+                    : updatedClaim.confirmation === 'NG' 
+                    ? `<strong>${currentUser.name}</strong> đã xác nhận claim <strong>${updatedClaim.id}</strong> là <strong>NG</strong> - tính vào thống kê`
+                    : `<strong>${currentUser.name}</strong> đã đặt claim <strong>${updatedClaim.id}</strong> về trạng thái chờ xác nhận`;
+                
+                const confirmationNotif = {
+                    id: `notif-${Date.now()}-confirmation`,
+                    message: confirmationMessage,
+                    claimId: updatedClaim.id,
+                    userId: currentUser.id,
+                    isRead: false,
+                    timestamp: new Date().toISOString()
+                };
+                
+                newNotifications.push(confirmationNotif);
+            }
+            
             if (newNotifications.length > 0) {
                 await Promise.all(newNotifications.map(n => databaseService.createNotification(n)));
                 setNotifications(prev => [...newNotifications, ...prev]);
@@ -235,11 +303,11 @@ function App() {
 
     const renderContent = () => {
         if (selectedClaim && currentView === 'claimDetail') {
-            return <ClaimDetail claim={selectedClaim} onUpdateClaim={handleUpdateClaim} onBack={handleBackToList} currentUser={currentUser} onAddComment={handleAddComment} />;
+            return <ClaimDetail claim={selectedClaim} onUpdateClaim={handleUpdateClaim} onBack={handleBackToList} currentUser={currentUser} onAddComment={handleAddComment} showToast={showToast} />;
         }
         switch (currentView) {
             case 'dashboard':
-                return <Dashboard claims={claims} onClaimSelect={handleClaimSelect} />;
+                return <Dashboard key={`dashboard-${claims.length}-${claims.map(c => c.id).join(',')}`} claims={claims} onClaimSelect={handleClaimSelect} />;
             case 'claimsboard':
                 return <ClaimsBoard claims={claims} onClaimSelect={handleClaimSelect} onNewClaimClick={() => setIsCreateModalOpen(true)} currentUser={currentUser}/>;
             case 'reports':
@@ -247,7 +315,7 @@ function App() {
             case 'settings':
                 return <SettingsPage users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} />;
             default:
-                return <Dashboard claims={claims} onClaimSelect={handleClaimSelect} />;
+                return <Dashboard key={`dashboard-${claims.length}-${claims.map(c => c.id).join(',')}`} claims={claims} onClaimSelect={handleClaimSelect} />;
         }
     };
 
@@ -256,7 +324,8 @@ function App() {
     }
 
     return (
-        <div className="app">
+        <ThemeProvider>
+            <div className="app">
             <Layout 
                 onNavigate={handleNavigate} 
                 currentView={currentView} 
@@ -276,7 +345,8 @@ function App() {
               {isCreateModalOpen && <CreateClaimModal onClose={() => setIsCreateModalOpen(false)} onCreateClaim={handleCreateClaim} />}
             </Suspense>
             <ToastContainer toasts={toasts} onRemove={removeToast} />
-        </div>
+            </div>
+        </ThemeProvider>
     );
 }
 

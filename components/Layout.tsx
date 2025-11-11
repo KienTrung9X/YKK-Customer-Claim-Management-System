@@ -1,6 +1,7 @@
 // FIX: Create the Layout component to provide the main application structure.
 // FIX: Import `useState` from React to resolve 'Cannot find name' error and fix import syntax.
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   DashboardIcon, ClaimsIcon, ReportsIcon, SettingsIcon, BellIcon, ChevronDownIcon, SunIcon, MoonIcon, CheckCircleIcon
 } from './Icons';
@@ -8,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { permissionService } from '../services/permissionService';
 import { User, AppNotification, Claim } from '../types';
 import { NotificationBell } from './NotificationBell';
+import { LanguageSelector } from './LanguageSelector';
 
 const NavLink: React.FC<{
   icon: React.ReactNode;
@@ -30,11 +32,12 @@ const NavLink: React.FC<{
 
 
 const Sidebar: React.FC<{ onNavigate: (view: string) => void; currentView: string; user: User; isOpen: boolean; onClose: () => void }> = ({ onNavigate, currentView, user, isOpen, onClose }) => {
+    const { t } = useTranslation();
     const navItems = [
-      { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon className="w-5 h-5" />, canView: () => true },
-      { id: 'claimsboard', label: 'Claims Board', icon: <ClaimsIcon className="w-5 h-5" />, canView: () => true },
-      { id: 'reports', label: 'Báo cáo & Phân tích', icon: <ReportsIcon className="w-5 h-5" />, canView: permissionService.canViewReports },
-      { id: 'settings', label: 'Cài đặt', icon: <SettingsIcon className="w-5 h-5" />, canView: permissionService.canViewSettings },
+      { id: 'dashboard', label: t('nav.dashboard'), icon: <DashboardIcon className="w-5 h-5" />, canView: () => true },
+      { id: 'claimsboard', label: t('nav.claims'), icon: <ClaimsIcon className="w-5 h-5" />, canView: () => true },
+      { id: 'reports', label: t('nav.reports'), icon: <ReportsIcon className="w-5 h-5" />, canView: permissionService.canViewReports },
+      { id: 'settings', label: t('nav.settings'), icon: <SettingsIcon className="w-5 h-5" />, canView: permissionService.canViewSettings },
     ];
 
     const handleNavClick = (view: string) => {
@@ -47,7 +50,7 @@ const Sidebar: React.FC<{ onNavigate: (view: string) => void; currentView: strin
         {isOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={onClose}></div>}
         <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 flex-shrink-0 bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col transform transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
           <div className="h-16 flex items-center justify-between px-4 border-b dark:border-gray-700">
-            <h1 className="text-xl lg:text-2xl font-bold text-ykk-blue">YKK CCMS</h1>
+            <h1 className="text-xl lg:text-2xl font-bold text-ykk-blue dark:text-white">{t('common.appTitle')}</h1>
             <button onClick={onClose} className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -81,6 +84,7 @@ const Header: React.FC<{
     onNavigate: (view: string) => void,
     onMenuClick: () => void,
 }> = ({ user, allUsers, setCurrentUser, notifications, onMarkAllNotificationsAsRead, onNavigateToClaim, claims, onNavigate, onMenuClick }) => {
+    const { t } = useTranslation();
     const { theme, toggleTheme } = useTheme();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -99,6 +103,7 @@ const Header: React.FC<{
             </button>
         </div>
         <div className="flex items-center space-x-2 lg:space-x-4">
+            <LanguageSelector />
             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
                 {theme === 'light' ? <MoonIcon className="w-4 h-4 lg:w-5 lg:h-5" /> : <SunIcon className="w-4 h-4 lg:w-5 lg:h-5" />}
             </button>
@@ -124,7 +129,7 @@ const Header: React.FC<{
             </button>
             {userMenuOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 border dark:border-gray-700">
-                    <div className="p-2 text-xs text-gray-500 dark:text-gray-400">Đăng nhập với vai trò...</div>
+                    <div className="p-2 text-xs text-gray-500 dark:text-gray-400">{t('common.loginAs')}</div>
                     <div className="max-h-60 overflow-y-auto">
                     {allUsers.map(u => (
                         <button key={u.id} onClick={() => handleUserSelect(u)} className="w-full text-left flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
